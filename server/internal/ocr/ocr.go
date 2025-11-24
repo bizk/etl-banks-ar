@@ -3,6 +3,7 @@ package ocr
 import (
 	"context"
 	"encoding/json"
+	"etl-banks-ar/internal/models"
 	"fmt"
 	"log"
 	"os"
@@ -12,20 +13,7 @@ import (
 	"github.com/openai/openai-go/responses"
 )
 
-// Define the expected JSON structure
-type BankMovements struct {
-	Transactions []Transaction `json:"transactions"`
-}
-
-type Transaction struct {
-	Date         *string  `json:"date"`
-	Description  *string  `json:"description"`
-	Amount       *float64 `json:"amount"`
-	BalanceAfter *float64 `json:"balance_after"`
-	Category     *string  `json:"category"` // "debit" | "credit"
-}
-
-func Execute(filePath string) (*BankMovements, error) {
+func Execute(filePath string) (*models.BankMovements, error) {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
 		log.Fatal("OPENAI_API_KEY not set")
@@ -129,11 +117,11 @@ Rules:
 		return nil, fmt.Errorf("empty response from model")
 	}
 
-	var parsed BankMovements
+	var parsed models.BankMovements
 	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
 		// Helpful debug log if JSON is malformed
 		log.Printf("model output was:\n%s\n", raw)
-		return nil, fmt.Errorf("error parsing JSON into BankMovements: %w", err)
+		return nil, fmt.Errorf("error parsing JSON into models.BankMovements: %w", err)
 	}
 
 	return &parsed, nil

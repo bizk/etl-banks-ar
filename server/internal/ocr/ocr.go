@@ -1,7 +1,6 @@
 package ocr
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"etl-banks-ar/internal/models"
@@ -11,9 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
-	"github.com/openai/openai-go/responses"
+	openAiService "etl-banks-ar/internal/openai"
 )
 
 type TransactionList struct {
@@ -28,43 +25,20 @@ type Transaction struct {
 	Type         string  `json:"type"` // "debit" | "credit"
 }
 
-func Execute(filePath string) (*[]models.Transaction, error) {
-	apiKey := os.Getenv("OPENAI_API_KEY")
-	if apiKey == "" {
-		log.Fatal("OPENAI_API_KEY not set")
-	}
-
-	ctx := context.Background()
-
-	client := openai.NewClient(
-		option.WithAPIKey(apiKey),
-	)
-
-	// 1) Upload the PDF
+func ReadFile(filePath string) (*[]models.Transaction, error) {
+	service := openAiService.NewClient()
 	file, err := os.Open(filePath)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
 	defer file.Close()
 
-	uploaded, err := client.Files.New(ctx, openai.FileNewParams{
-		File:    file,
-		Purpose: openai.FilePurposeAssistants, // purpose depends on latest SDK, this is typical
-	})
+	uploadedId, err := service.UploadFile(file)
 	if err != nil {
 		log.Fatalf("error uploading file: %v", err)
 	}
+	fmt.Println("Uploaded file ID:", uploadedId)
 
-	fmt.Println("Uploaded file ID:", uploaded.ID)
-
-	// 2) Build the Responses API request, with the PDF as an input_file
-	//
-	// We send:
-	//   - the PDF file
-	//   - a text instruction asking for structured JSON
-	//
-	// The union types (`OfInputItemList`, `OfInputFile`, etc.) follow the same pattern
-	// shown in the official Responses examples.
 	prompt := `You are an expert OCR and bank-statement parser.
 
 Extract EVERY transaction from the bank statement PDF and return ONLY valid JSON with this exact structure:
@@ -98,49 +72,14 @@ CRITICAL REQUIREMENTS:
 
 Return ONLY the JSON object, nothing else.`
 
-	params := responses.ResponseNewParams{
-		Model:           openai.ChatModelGPT4o, // or a ResponsesModel like ResponsesModelO4Mini if available
-		MaxOutputTokens: openai.Int(16384),     // Increased to handle large statements
-		Input: responses.ResponseNewParamsInputUnion{
-			OfInputItemList: responses.ResponseInputParam{
-				// One "message" that includes: file + text prompt
-				responses.ResponseInputItemParamOfMessage(
-					responses.ResponseInputMessageContentListParam{
-						// 1) The PDF file
-						responses.ResponseInputContentUnionParam{
-							OfInputFile: &responses.ResponseInputFileParam{
-								FileID: openai.String(uploaded.ID),
-								Type:   "input_file",
-							},
-						},
-						// 2) The textual instructions
-						responses.ResponseInputContentUnionParam{
-							OfInputText: &responses.ResponseInputTextParam{
-								Text: prompt,
-								Type: "input_text",
-							},
-						},
-					},
-					"user",
-				),
-			},
-		},
-	}
-
-	resp, err := client.Responses.New(ctx, params)
+	response, err := service.PromptResponse(prompt, uploadedId)
 	if err != nil {
-		return nil, fmt.Errorf("error calling Responses API: %w", err)
+		log.Fatalf("error calling Responses API: %v", err)
 	}
 
-	raw := resp.OutputText()
-	if raw == "" {
-		return nil, fmt.Errorf("empty response from model")
-	}
+	fmt.Println("Raw: ", response)
 
-	fmt.Println("Raw: ", raw)
-
-	// Clean the response: remove markdown code blocks if present
-	cleaned := cleanJSONResponse(raw)
+	cleaned := cleanJSONResponse(response)
 
 	var parsed TransactionList
 	if err := json.Unmarshal([]byte(cleaned), &parsed); err != nil {
@@ -168,7 +107,6 @@ func ParseTransactions(transactions TransactionList) *[]models.Transaction {
 		}
 
 		parsed = append(parsed, models.Transaction{
-			ID:           uint(time.Now().Unix()),
 			Date:         date,
 			Description:  sql.NullString{String: transaction.Description, Valid: true},
 			Amount:       sql.NullFloat64{Float64: amount, Valid: true},

@@ -76,8 +76,7 @@ Return ONLY the JSON object, nothing else.`
 	if err != nil {
 		log.Fatalf("error calling Responses API: %v", err)
 	}
-
-	fmt.Println("Raw: ", response)
+	log.Printf("received OCR response (%d chars)", len(response))
 
 	cleaned := cleanJSONResponse(response)
 

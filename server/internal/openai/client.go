@@ -93,3 +93,31 @@ func (c *OpenAIClient) GetEmbedding(text string) ([]float64, error) {
 	emb := resp.Data[0].Embedding
 	return []float64(emb), nil
 }
+
+func (c *OpenAIClient) PromptText(prompt string) (string, error) {
+	params := responses.ResponseNewParams{
+		Model: openai.ChatModelGPT4o,
+		Input: responses.ResponseNewParamsInputUnion{
+			OfInputItemList: responses.ResponseInputParam{
+				responses.ResponseInputItemParamOfMessage(
+					responses.ResponseInputMessageContentListParam{
+						responses.ResponseInputContentUnionParam{
+							OfInputText: &responses.ResponseInputTextParam{
+								Text: prompt,
+								Type: "input_text",
+							},
+						},
+					},
+					"user",
+				),
+			},
+		},
+	}
+
+	resp, err := c.Client.Responses.New(c.Context, params)
+	if err != nil {
+		return "", fmt.Errorf("error calling Responses API: %w", err)
+	}
+
+	return resp.OutputText(), nil
+}

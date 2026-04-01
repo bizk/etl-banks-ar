@@ -8,8 +8,9 @@ import (
 	openAiService "etl-banks-ar/internal/openai"
 	"etl-banks-ar/internal/trainingcsv"
 	"flag"
-	"log"
+	"fmt"
 	"math"
+	"os"
 	"strings"
 	"time"
 
@@ -18,7 +19,7 @@ import (
 
 func main() {
 	startedAt := time.Now()
-	log.SetFlags(log.LstdFlags)
+	ui := newCLIPrinter(os.Stdout, os.Stderr)
 
 	trainingDir := flag.String("training-dir", "", "Folder with labeled CSV training data")
 	inputPDF := flag.String("input-pdf", "", "Bank statement PDF to analyze")
@@ -28,46 +29,49 @@ func main() {
 	flag.Parse()
 
 	if *trainingDir == "" || *inputPDF == "" || *outputCSV == "" {
-		log.Fatal("usage: go run ./cmd/categorize --training-dir ./data/train --input-pdf ./resources/statement.pdf --output-csv ./out/predictions.csv [--cuenta cash]")
+		ui.fail("usage: go run ./cmd/categorize --training-dir ./data/train --input-pdf ./resources/statement.pdf --output-csv ./out/predictions.csv [--cuenta cash]")
 	}
 
-	log.Printf("starting categorize flow")
-	log.Printf("training-dir=%s input-pdf=%s output-csv=%s cuenta=%s", *trainingDir, *inputPDF, *outputCSV, *account)
+	ui.header("Bank Statement Categorizer")
+	ui.info("training-dir=%s", *trainingDir)
+	ui.info("input-pdf=%s", *inputPDF)
+	ui.info("output-csv=%s", *outputCSV)
+	ui.info("cuenta=%s", *account)
 
 	if err := godotenv.Load(); err != nil {
-		log.Printf("warning: .env not loaded, relying on environment variables")
+		ui.warn(".env not loaded, relying on environment variables")
 	}
 
-	log.Printf("loading training data")
+	ui.step(1, "Loading training data")
 	_, examples, err := trainingcsv.LoadTrainingData(*trainingDir)
 	if err != nil {
-		log.Fatalf("failed to load training CSVs: %v", err)
+		ui.fail("failed to load training CSVs: %v", err)
 	}
-	log.Printf("loaded %d training examples", len(examples))
+	ui.ok("loaded %d training examples", len(examples))
 
-	log.Printf("extracting transactions from PDF")
+	ui.step(2, "Extracting transactions from PDF")
 	transactions, err := ocr.ReadFile(*inputPDF)
 	if err != nil {
-		log.Fatalf("failed to parse PDF: %v", err)
+		ui.fail("failed to parse PDF: %v", err)
 	}
 	if len(*transactions) == 0 {
-		log.Fatal("no transactions parsed from PDF")
+		ui.fail("no transactions parsed from PDF")
 	}
-	log.Printf("parsed %d transactions", len(*transactions))
+	ui.ok("parsed %d transactions", len(*transactions))
 
 	filteredTransactions, skipped := filterTransactionsByDescription(*transactions, "yanzon")
 	if len(filteredTransactions) == 0 {
-		log.Fatal("all transactions were filtered out")
+		ui.fail("all transactions were filtered out")
 	}
-	log.Printf("filtered %d transactions by description contains 'yanzon' (case-insensitive). Remaining: %d", skipped, len(filteredTransactions))
+	ui.ok("filtered %d transactions by 'yanzon' (case-insensitive). Remaining: %d", skipped, len(filteredTransactions))
 
-	log.Printf("requesting OpenAI categorization")
+	ui.step(3, "Categorizing with OpenAI")
 	client := openAiService.NewClient()
 	categories, err := categorizer.CategorizeWithOpenAI(client, filteredTransactions, examples, *examplesPerCategory)
 	if err != nil {
-		log.Fatalf("failed to categorize transactions: %v", err)
+		ui.fail("failed to categorize transactions: %v", err)
 	}
-	log.Printf("received categories for %d transactions", len(categories))
+	ui.ok("received categories for %d transactions", len(categories))
 
 	for i := range filteredTransactions {
 		filteredTransactions[i].Category = sql.NullString{String: categories[i], Valid: true}
@@ -77,12 +81,12 @@ func main() {
 		}
 	}
 
-	log.Printf("writing output CSV")
+	ui.step(4, "Writing output CSV")
 	if err = trainingcsv.WriteCategorizedOutputCSV(*outputCSV, *account, filteredTransactions); err != nil {
-		log.Fatalf("failed to export CSV: %v", err)
+		ui.fail("failed to export CSV: %v", err)
 	}
 
-	log.Printf("done: wrote %d rows to %s in %s", len(filteredTransactions), *outputCSV, time.Since(startedAt).Round(time.Millisecond))
+	ui.summary(len(filteredTransactions), skipped, *outputCSV, time.Since(startedAt).Round(time.Millisecond))
 }
 
 func filterTransactionsByDescription(transactions []models.Transaction, blockedTerm string) ([]models.Transaction, int) {
@@ -119,4 +123,85 @@ func normalizeSignedAmount(tx models.Transaction) float64 {
 		return absAmount
 	}
 	return tx.Amount.Float64
+}
+
+type cliPrinter struct {
+	out        *os.File
+	err        *os.File
+	useColor   bool
+	resetColor string
+}
+
+func newCLIPrinter(out *os.File, err *os.File) cliPrinter {
+	term := strings.ToLower(strings.TrimSpace(os.Getenv("TERM")))
+	noColor := os.Getenv("NO_COLOR") != ""
+	useColor := term != "dumb" && !noColor && isTerminal(out)
+	return cliPrinter{
+		out:        out,
+		err:        err,
+		useColor:   useColor,
+		resetColor: "\033[0m",
+	}
+}
+
+func (c cliPrinter) header(title string) {
+	line := strings.Repeat("=", 52)
+	fmt.Fprintln(c.out, c.decorate(line, "1;36"))
+	fmt.Fprintln(c.out, c.decorate("  "+title, "1;37"))
+	fmt.Fprintln(c.out, c.decorate(line, "1;36"))
+}
+
+func (c cliPrinter) step(num int, message string) {
+	fmt.Fprintln(c.out, c.decorate(fmt.Sprintf("[STEP %d] %s", num, message), "1;34"))
+}
+
+func (c cliPrinter) info(format string, args ...any) {
+	c.print(c.out, "INFO", "0;36", format, args...)
+}
+
+func (c cliPrinter) warn(format string, args ...any) {
+	c.print(c.out, "WARN", "1;33", format, args...)
+}
+
+func (c cliPrinter) ok(format string, args ...any) {
+	c.print(c.out, " OK ", "1;32", format, args...)
+}
+
+func (c cliPrinter) fail(format string, args ...any) {
+	c.print(c.err, "ERR!", "1;31", format, args...)
+	os.Exit(1)
+}
+
+func (c cliPrinter) summary(writtenRows int, skipped int, outputPath string, elapsed time.Duration) {
+	fmt.Fprintln(c.out, c.decorate(strings.Repeat("-", 52), "1;36"))
+	c.print(c.out, "DONE", "1;32", "wrote %d rows", writtenRows)
+	c.print(c.out, "INFO", "0;36", "skipped by filter: %d", skipped)
+	c.print(c.out, "INFO", "0;36", "output file: %s", outputPath)
+	c.print(c.out, "INFO", "0;36", "elapsed: %s", elapsed)
+	fmt.Fprintln(c.out, c.decorate(strings.Repeat("-", 52), "1;36"))
+}
+
+func (c cliPrinter) print(stream *os.File, label string, color string, format string, args ...any) {
+	message := fmt.Sprintf(format, args...)
+	ts := time.Now().Format("15:04:05")
+	decoratedLabel := c.decorate(label, color)
+	fmt.Fprintf(stream, "[%s] %s %s\n", ts, decoratedLabel, message)
+}
+
+func (c cliPrinter) decorate(text string, color string) string {
+	if !c.useColor {
+		return text
+	}
+	return "\033[" + color + "m" + text + c.resetColor
+}
+
+func isTerminal(f *os.File) bool {
+	if f == nil {
+		return false
+	}
+	info, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return (info.Mode() & os.ModeCharDevice) != 0
 }

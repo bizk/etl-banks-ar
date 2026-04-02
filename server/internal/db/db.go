@@ -31,5 +31,14 @@ func Connect() *gorm.DB {
 func Migrate() {
 	db := Connect()
 
-	db.AutoMigrate(&models.Transaction{})
+	err := db.AutoMigrate(
+		&models.User{},
+		&models.Workspace{},
+		&models.WorkspaceMember{},
+		&models.WorkspaceInvite{},
+		&models.Transaction{},
+	)
+	if err != nil {
+		panic(fmt.Sprintf("failed to migrate database: %v", err))
+	}
 }

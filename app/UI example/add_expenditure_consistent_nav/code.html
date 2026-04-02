@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Add Expenditure - SpendWise</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "inverse-surface": "#2f3034",
+              "on-secondary-container": "#fffbff",
+              "tertiary-fixed": "#ffdcc6",
+              "on-error-container": "#93000a",
+              "on-primary-fixed-variant": "#065f46",
+              "inverse-on-surface": "#f1f0f5",
+              "surface-container": "#eeedf3",
+              "tertiary": "#6c3400",
+              "on-background": "#1a1b1f",
+              "surface-dim": "#dad9df",
+              "on-secondary": "#ffffff",
+              "on-tertiary": "#ffffff",
+              "background": "#faf9fe",
+              "on-surface": "#1a1b1f",
+              "on-surface-variant": "#454652",
+              "on-error": "#ffffff",
+              "on-tertiary-container": "#ffc7a2",
+              "surface": "#faf9fe",
+              "outline": "#757684",
+              "inverse-primary": "#6ee7b7",
+              "error": "#ba1a1a",
+              "surface-container-lowest": "#ffffff",
+              "tertiary-fixed-dim": "#ffb784",
+              "primary": "#10b981",
+              "error-container": "#ffdad6",
+              "tertiary-container": "#8f4700",
+              "outline-variant": "#c5c5d4",
+              "on-primary": "#ffffff",
+              "surface-container-highest": "#e3e2e7",
+              "on-primary-fixed": "#064e3b",
+              "on-tertiary-fixed": "#301400",
+              "on-secondary-fixed": "#0c006a",
+              "surface-container-low": "#f4f3f8",
+              "on-tertiary-fixed-variant": "#713700",
+              "secondary-fixed-dim": "#c2c1ff",
+              "surface-container-high": "#e9e7ed",
+              "primary-fixed": "#d1fae5",
+              "on-primary-container": "#065f46",
+              "surface-tint": "#10b981",
+              "secondary": "#4c4aca",
+              "on-secondary-fixed-variant": "#3631b4",
+              "primary-container": "#10b981",
+              "secondary-fixed": "#e2dfff",
+              "secondary-container": "#6664e4"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body {
+          min-height: max(884px, 100dvh);
+        }
+        .pb-safe {
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- TopAppBar Component (from COMPONENTS_23) -->
+<header class="fixed top-0 w-full z-50 bg-[#f8f9fa]/80 dark:bg-[#191C1D]/80 backdrop-blur-xl">
+<div class="flex justify-between items-center px-6 h-16 w-full max-w-screen-xl mx-auto">
+<button class="text-[#191C1D]/60 dark:text-[#f8f9fa]/60 hover:opacity-80 transition-opacity active:scale-95 duration-200">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+</button>
+<h1 class="text-2xl font-bold font-manrope tracking-tight text-[#10B981] dark:text-[#10B981]">Add Expenditure</h1>
+<button class="text-[#191C1D]/60 dark:text-[#f8f9fa]/60 hover:opacity-80 transition-opacity active:scale-95 duration-200">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</div>
+</header>
+<main class="pt-24 pb-44 px-6 max-w-lg mx-auto">
+<!-- Amount Focus Area -->
+<section class="mb-12 text-center">
+<label class="block text-sm font-medium text-on-surface-variant mb-2 font-label">Amount</label>
+<div class="relative inline-flex items-baseline justify-center w-full">
+<span class="text-3xl font-headline font-semibold text-primary/60 mr-1">$</span>
+<input autofocus="" class="w-full text-center text-6xl font-headline font-extrabold bg-transparent border-none focus:ring-0 text-primary placeholder-primary/20 p-0" placeholder="0.00" step="0.01" type="number"/>
+</div>
+</section>
+<!-- Form Fields -->
+<div class="space-y-8">
+<!-- Category / Type Selection (Horizontal Scroll Bento) -->
+<div>
+<label class="block text-sm font-semibold text-on-surface-variant mb-4 px-1">Category</label>
+<div class="flex gap-3 overflow-x-auto hide-scrollbar pb-2 -mx-6 px-6">
+<button class="flex-shrink-0 flex flex-col items-center justify-center w-24 h-24 bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="material-symbols-outlined text-primary mb-2">search</span>
+<span class="text-[11px] font-medium text-on-surface">Search</span>
+</button>
+<button class="flex-shrink-0 flex flex-col items-center justify-center w-24 h-24 bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="restaurant">restaurant</span>
+<span class="text-[11px] font-medium text-on-surface">Dining</span>
+</button>
+<button class="flex-shrink-0 flex flex-col items-center justify-center w-24 h-24 bg-primary text-on-primary rounded-xl shadow-xl shadow-primary/10 transition-all">
+<span class="material-symbols-outlined mb-2" data-icon="shopping_bag">shopping_bag</span>
+<span class="text-[11px] font-medium">Shopping</span>
+</button>
+<button class="flex-shrink-0 flex flex-col items-center justify-center w-24 h-24 bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="directions_car">directions_car</span>
+<span class="text-[11px] font-medium text-on-surface">Transport</span>
+</button>
+<button class="flex-shrink-0 flex flex-col items-center justify-center w-24 h-24 bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="movie">movie</span>
+<span class="text-[11px] font-medium text-on-surface">Leisure</span>
+</button>
+<button class="flex-shrink-0 flex flex-col items-center justify-center w-24 h-24 bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="more_horiz">more_horiz</span>
+<span class="text-[11px] font-medium text-on-surface">Others</span>
+</button>
+</div>
+</div>
+<!-- Date and Who (Two Column) -->
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-2">
+<label class="block text-sm font-semibold text-on-surface-variant px-1">Date</label>
+<div class="relative">
+<input class="w-full h-14 bg-surface-container-low border-none rounded-xl px-4 text-on-surface font-medium focus:ring-2 focus:ring-primary/10 transition-shadow" type="date" value="2023-10-27"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-semibold text-on-surface-variant px-1">Who</label>
+<div class="flex h-14 bg-surface-container-low rounded-xl p-1.5 gap-1">
+<button class="flex-1 bg-surface-container-lowest text-primary font-bold rounded-lg text-xs shadow-sm transition-all">Me</button>
+<button class="flex-1 text-on-surface-variant font-medium rounded-lg text-xs hover:bg-surface-container-highest/40 transition-all">GF</button>
+</div>
+</div>
+</div>
+<!-- Description -->
+<div class="space-y-2">
+<label class="block text-sm font-semibold text-on-surface-variant px-1">Description</label>
+<textarea class="w-full bg-surface-container-low border-none rounded-xl p-4 text-on-surface placeholder-on-surface-variant/40 focus:ring-2 focus:ring-primary/10 transition-shadow resize-none" placeholder="What was this for?" rows="3"></textarea>
+</div>
+<!-- Set as Fixed Toggle -->
+<div class="flex items-center justify-between px-1 py-2">
+<div class="flex flex-col">
+<span class="text-sm font-semibold text-on-surface-variant">Set as fixed</span>
+<span class="text-[10px] text-on-surface-variant/60">Recurring monthly expenditure</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<!-- Visual Context Card (Editorial Design) -->
+<div class="relative w-full h-40 rounded-3xl overflow-hidden group">
+<img alt="Abstract finance" class="w-full h-full object-cover grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-60 transition-all duration-700" data-alt="Modern minimalist aesthetic of a warm sunlit workspace with soft shadows and a sleek leather wallet" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxJkohI1OT1HGKk5Cl3CmE1_pyj6qc5jYA2Sg6zrtKCEvEBmgRVq0aZIUKGzrFgMrVqYE_7fGO3VWPx17VwHohO527hOFBSebm8xvO2HhJi34Kb2u3Gy6_NDkZ3Uc9wIl5it5w6fHzjB7bpUDU-3rpmO30oF8-jnkCgtLmPfPOooKWcAmw-tubTc7FlhSRsJrzg6qBpGp6cxVdmDU9oUwHyLb_0NdeFG-NeesZKo3_3KZp3B8hl1bSFnSNo4P6lC27viyBGtzKspA"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent"></div>
+<div class="absolute bottom-4 left-6">
+<p class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-1">Receipt Image</p>
+<button class="flex items-center gap-2 text-primary text-sm font-bold">
+<span class="material-symbols-outlined text-base">add_a_photo</span>
+                        Scan Receipt
+                    </button>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex gap-4 pt-4">
+<button class="flex-1 h-14 rounded-2xl bg-surface-container-highest text-on-surface font-headline font-bold hover:opacity-80 transition-opacity active:scale-[0.98] duration-200">
+                    Cancel
+                </button>
+<button class="flex-[2] h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-on-primary font-headline font-bold shadow-xl shadow-primary/20 hover:opacity-90 transition-opacity active:scale-[0.98] duration-200">
+                    Save Expense
+                </button>
+</div>
+</div>
+</main>
+<!-- BottomNavBar Component (from COMPONENTS_23) -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-[1.5rem] bg-[#f8f9fa]/80 dark:bg-[#191C1D]/80 backdrop-blur-xl border-t border-[#191C1D]/5 dark:border-[#f8f9fa]/5 shadow-[0_-4px_40px_rgba(0,0,0,0.04)]">
+<div class="flex justify-around items-center h-20 px-4 pb-safe w-full max-w-screen-xl mx-auto">
+<a class="flex flex-col items-center justify-center text-[#191C1D]/40 dark:text-[#f8f9fa]/40 hover:text-[#10B981] transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-[10px] uppercase tracking-widest font-bold font-inter mt-1">Overview</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#191C1D]/40 dark:text-[#f8f9fa]/40 hover:text-[#10B981] transition-colors" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="text-[10px] uppercase tracking-widest font-bold font-inter mt-1">Analysis</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#10B981] bg-[#10B981]/10 rounded-xl px-3 py-1 scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined">account_balance</span>
+<span class="text-[10px] uppercase tracking-widest font-bold font-inter mt-1">Budget</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#191C1D]/40 dark:text-[#f8f9fa]/40 hover:text-[#10B981] transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] uppercase tracking-widest font-bold font-inter mt-1">Settings</span>
+</a>
+</div>
+</nav>
+</body></html>

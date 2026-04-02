@@ -26,18 +26,21 @@ type Transaction struct {
 }
 
 func ReadFile(filePath string) (*[]models.Transaction, error) {
-	service := openAiService.NewClient()
+	return ReadFileWithClient(openAiService.NewClient(), filePath)
+}
+
+func ReadFileWithClient(service *openAiService.OpenAIClient, filePath string) (*[]models.Transaction, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		log.Fatalf("error opening file: %v", err)
+		return nil, fmt.Errorf("error opening file: %w", err)
 	}
 	defer file.Close()
 
 	uploadedId, err := service.UploadFile(file)
 	if err != nil {
-		log.Fatalf("error uploading file: %v", err)
+		return nil, fmt.Errorf("error uploading file: %w", err)
 	}
-	fmt.Println("Uploaded file ID:", uploadedId)
+	log.Printf("Uploaded file ID: %s", uploadedId)
 
 	prompt := `You are an expert OCR and bank-statement parser.
 
@@ -74,7 +77,7 @@ Return ONLY the JSON object, nothing else.`
 
 	response, err := service.PromptResponse(prompt, uploadedId)
 	if err != nil {
-		log.Fatalf("error calling Responses API: %v", err)
+		return nil, fmt.Errorf("error calling Responses API: %w", err)
 	}
 	log.Printf("received OCR response (%d chars)", len(response))
 
@@ -85,12 +88,12 @@ Return ONLY the JSON object, nothing else.`
 		return nil, fmt.Errorf("error parsing JSON into TransactionList: %w", err)
 	}
 
-	return ParseTransactions(parsed), nil
+	return ParseTransactions(parsed)
 }
 
-func ParseTransactions(transactions TransactionList) *[]models.Transaction {
+func ParseTransactions(transactions TransactionList) (*[]models.Transaction, error) {
 	var parsed []models.Transaction
-	for _, transaction := range transactions.Transactions {
+	for i, transaction := range transactions.Transactions {
 		amount := transaction.Amount
 		if transaction.Type == "debit" {
 			amount = -amount
@@ -102,7 +105,7 @@ func ParseTransactions(transactions TransactionList) *[]models.Transaction {
 		}
 		date, err := time.Parse("2006-01-02", transaction.Date)
 		if err != nil {
-			log.Fatalf("error parsing date: %v", err)
+			return nil, fmt.Errorf("error parsing date at index %d: %w", i, err)
 		}
 
 		parsed = append(parsed, models.Transaction{
@@ -114,7 +117,7 @@ func ParseTransactions(transactions TransactionList) *[]models.Transaction {
 		})
 	}
 
-	return &parsed
+	return &parsed, nil
 }
 
 // cleanJSONResponse removes markdown code blocks and trims whitespace

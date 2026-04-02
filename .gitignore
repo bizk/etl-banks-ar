@@ -1,5 +1,10 @@
 .env
-node_modules/
-server/temp/
+.env.*
+!.env.example
 
-server/resources/*
+.DS_Store
+.codex
+
+node_modules/
+package-lock.json
+yarn.lock

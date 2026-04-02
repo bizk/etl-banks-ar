@@ -22,12 +22,15 @@ interface TransactionFormData {
 
 export function TransactionsPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
+  const [showCategoryFilterMenu, setShowCategoryFilterMenu] = useState(false);
+  const [categoryFilterSearch, setCategoryFilterSearch] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<TransactionFormData>({
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -40,14 +43,17 @@ export function TransactionsPage() {
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
   const month = format(currentDate, 'yyyy-MM');
   const queryClient = useQueryClient();
+  const hasActiveFilters = Boolean(categoryFilter.length > 0 || typeFilter || sortOrder !== 'desc');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['transactions', currentWorkspace?.id, month, categoryFilter, typeFilter, page],
+    queryKey: ['transactions', currentWorkspace?.id, month, categoryFilter, typeFilter, sortOrder, page],
     queryFn: () =>
       transactionsApi.list(currentWorkspace!.id, {
         month,
-        category: categoryFilter || undefined,
+        category: categoryFilter.length > 0 ? categoryFilter : undefined,
         type: typeFilter || undefined,
+        sort: 'date',
+        order: sortOrder,
         page,
         per_page: 20,
       }),
@@ -158,6 +164,20 @@ export function TransactionsPage() {
     }
   };
 
+  const handleSortToggle = () => {
+    setSortOrder((current) => (current === 'desc' ? 'asc' : 'desc'));
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setCategoryFilter([]);
+    setCategoryFilterSearch('');
+    setShowCategoryFilterMenu(false);
+    setTypeFilter('');
+    setSortOrder('desc');
+    setPage(1);
+  };
+
   if (!currentWorkspace) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
@@ -190,6 +210,27 @@ export function TransactionsPage() {
       return normalizeCategory(category).includes(normalizedCategoryInput);
     })
     .slice(0, 8);
+  const filterCategoryOptions = Array.from(
+    new Map(
+      categories
+        .filter((category) => category && category.trim())
+        .map((category) => [normalizeCategory(category), category.trim() || 'Uncategorized'])
+    ).values()
+  );
+  const filteredCategoryFilterOptions = filterCategoryOptions.filter((category) =>
+    normalizeCategory(category).includes(normalizeCategory(categoryFilterSearch))
+  );
+  const toggleCategoryFilter = (category: string) => {
+    const normalized = normalizeCategory(category);
+    const isSelected = categoryFilter.some((selected) => normalizeCategory(selected) === normalized);
+
+    setCategoryFilter((current) =>
+      isSelected
+        ? current.filter((selected) => normalizeCategory(selected) !== normalized)
+        : [...current, category]
+    );
+    setPage(1);
+  };
 
   return (
     <div>
@@ -260,36 +301,192 @@ export function TransactionsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex gap-4 mb-6">
-        <select
-          value={categoryFilter}
-          onChange={(e) => {
-            setCategoryFilter(e.target.value);
-            setPage(1);
-          }}
-          className="px-4 py-2 rounded-lg bg-surface-container-low border-none text-sm"
-        >
-          <option value="">All Categories</option>
-          {categories.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat || 'Uncategorized'}
-            </option>
-          ))}
-        </select>
+      <section className="bg-surface-container-lowest rounded-2xl p-5 mb-6">
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-headline font-bold text-on-surface">Refine Records</h2>
+              <p className="text-sm text-on-surface-variant mt-1">Filter by category or type, and change chronological order.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSortToggle}
+                className="inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container"
+              >
+                <span className="material-symbols-outlined text-base">
+                  {sortOrder === 'desc' ? 'south' : 'north'}
+                </span>
+                Date: {sortOrder === 'desc' ? 'Newest first' : 'Oldest first'}
+              </button>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-low"
+                >
+                  <span className="material-symbols-outlined text-base">restart_alt</span>
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
 
-        <select
-          value={typeFilter}
-          onChange={(e) => {
-            setTypeFilter(e.target.value);
-            setPage(1);
-          }}
-          className="px-4 py-2 rounded-lg bg-surface-container-low border-none text-sm"
-        >
-          <option value="">All Types</option>
-          <option value="debit">Debits</option>
-          <option value="credit">Credits</option>
-        </select>
-      </div>
+          <div className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-on-surface-variant opacity-60 mb-3">
+                Categories
+              </p>
+              <div className="relative">
+                <button
+                  onClick={() => setShowCategoryFilterMenu((current) => !current)}
+                  className="flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl bg-surface-container-low px-4 py-3 text-left transition-colors hover:bg-surface-container"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-on-surface">
+                      {categoryFilter.length === 0
+                        ? 'All Categories'
+                        : `${categoryFilter.length} categor${categoryFilter.length === 1 ? 'y' : 'ies'} selected`}
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {categoryFilter.length === 0 ? (
+                        <span className="text-xs text-on-surface-variant">Search and choose one or more categories</span>
+                      ) : (
+                        categoryFilter.map((category) => {
+                          const categoryMeta = getCategoryMeta(category);
+
+                          return (
+                            <span
+                              key={normalizeCategory(category)}
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${categoryMeta.badgeClassName}`}
+                            >
+                              <span className="material-symbols-outlined text-sm">{categoryMeta.icon}</span>
+                              {category}
+                            </span>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                  <span className="material-symbols-outlined text-on-surface-variant">
+                    {showCategoryFilterMenu ? 'expand_less' : 'expand_more'}
+                  </span>
+                </button>
+
+                {showCategoryFilterMenu && (
+                  <div className="absolute z-20 mt-2 w-full rounded-2xl border border-gray-200 bg-white p-3 shadow-xl">
+                    <div className="relative">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
+                        <span className="material-symbols-outlined text-base">search</span>
+                      </span>
+                      <input
+                        type="text"
+                        value={categoryFilterSearch}
+                        onChange={(e) => setCategoryFilterSearch(e.target.value)}
+                        placeholder="Search categories"
+                        className="w-full rounded-xl border border-gray-200 bg-surface-container-low py-3 pl-11 pr-4 text-sm outline-none transition-colors focus:border-primary-container"
+                      />
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <button
+                        onClick={() => {
+                          setCategoryFilter([]);
+                          setPage(1);
+                        }}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          categoryFilter.length === 0
+                            ? 'bg-primary-container text-white'
+                            : 'bg-surface-container-low text-on-surface hover:bg-surface-container'
+                        }`}
+                      >
+                        All Categories
+                      </button>
+                      {categoryFilter.length > 0 && (
+                        <button
+                          onClick={() => {
+                            setCategoryFilter([]);
+                            setPage(1);
+                          }}
+                          className="text-xs font-semibold text-on-surface-variant hover:text-on-surface"
+                        >
+                          Clear selection
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="mt-3 max-h-72 overflow-y-auto space-y-1">
+                      {filteredCategoryFilterOptions.length > 0 ? (
+                        filteredCategoryFilterOptions.map((category) => {
+                          const categoryMeta = getCategoryMeta(category);
+                          const isSelected = categoryFilter.some(
+                            (selected) => normalizeCategory(selected) === normalizeCategory(category)
+                          );
+
+                          return (
+                            <button
+                              key={normalizeCategory(category)}
+                              onClick={() => toggleCategoryFilter(category)}
+                              className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition-colors ${
+                                isSelected ? 'bg-surface-container-low' : 'hover:bg-surface-container-low'
+                              }`}
+                            >
+                              <span className="flex min-w-0 items-center gap-3">
+                                <span
+                                  className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ${categoryMeta.badgeClassName}`}
+                                >
+                                  <span className="material-symbols-outlined text-lg">{categoryMeta.icon}</span>
+                                </span>
+                                <span className="truncate text-sm font-medium">{category}</span>
+                              </span>
+                              <span className="material-symbols-outlined text-on-surface-variant">
+                                {isSelected ? 'check_circle' : 'add_circle'}
+                              </span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="px-3 py-4 text-sm text-gray-500">No categories match your search.</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-on-surface-variant opacity-60 mb-3">
+                Types
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { value: '', label: 'All Types', icon: 'tune', className: 'bg-surface-container text-on-surface' },
+                  { value: 'debit', label: 'Debits', icon: 'south_west', className: 'bg-rose-100 text-rose-700' },
+                  { value: 'credit', label: 'Credits', icon: 'north_east', className: 'bg-emerald-100 text-emerald-700' },
+                ].map((option) => {
+                  const isActive = typeFilter === option.value;
+
+                  return (
+                    <button
+                      key={option.label}
+                      onClick={() => {
+                        setTypeFilter(option.value);
+                        setPage(1);
+                      }}
+                      className={`flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-all ${
+                        isActive
+                          ? `${option.className} ring-2 ring-inset ring-current`
+                          : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-base">{option.icon}</span>
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Transactions Table */}
       <div className="bg-surface-container-lowest rounded-xl overflow-hidden">
@@ -307,7 +504,15 @@ export function TransactionsPage() {
             <thead className="bg-surface-container-low">
               <tr>
                 <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Date
+                  <button
+                    onClick={handleSortToggle}
+                    className="inline-flex items-center gap-1 transition-colors hover:text-on-surface"
+                  >
+                    Date
+                    <span className="material-symbols-outlined text-sm">
+                      {sortOrder === 'desc' ? 'south' : 'north'}
+                    </span>
+                  </button>
                 </th>
                 <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Description
@@ -432,27 +637,50 @@ export function TransactionsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Type</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="type"
-                      value="debit"
-                      checked={formData.type === 'debit'}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value as 'debit' | 'credit' })}
-                    />
-                    <span>Debit (Expense)</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="type"
-                      value="credit"
-                      checked={formData.type === 'credit'}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value as 'debit' | 'credit' })}
-                    />
-                    <span>Credit (Income)</span>
-                  </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    {
+                      value: 'debit',
+                      label: 'Debit',
+                      description: 'Expense',
+                      icon: 'south_west',
+                      activeClassName: 'bg-rose-50 text-rose-700 ring-rose-200 border-rose-200',
+                    },
+                    {
+                      value: 'credit',
+                      label: 'Credit',
+                      description: 'Income',
+                      icon: 'north_east',
+                      activeClassName: 'bg-emerald-50 text-emerald-700 ring-emerald-200 border-emerald-200',
+                    },
+                  ].map((option) => {
+                    const isActive = formData.type === option.value;
+
+                    return (
+                      <label
+                        key={option.value}
+                        className={`relative flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 ring-1 ring-inset transition-colors ${
+                          isActive
+                            ? option.activeClassName
+                            : 'border-gray-200 bg-surface-container-low text-gray-600 ring-transparent hover:bg-surface-container'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="type"
+                          value={option.value}
+                          checked={isActive}
+                          onChange={(e) => setFormData({ ...formData, type: e.target.value as 'debit' | 'credit' })}
+                          className="sr-only"
+                        />
+                        <span className="material-symbols-outlined">{option.icon}</span>
+                        <span className="flex flex-col">
+                          <span className="font-semibold">{option.label}</span>
+                          <span className="text-xs opacity-70">{option.description}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
               <div>
@@ -514,7 +742,12 @@ export function TransactionsPage() {
                               >
                                 <span className="material-symbols-outlined text-lg">{categoryMeta.icon}</span>
                               </span>
-                              <span className="text-sm font-medium">{category}</span>
+                              <span className="flex flex-col">
+                                <span className="text-sm font-medium">{category}</span>
+                                {isPredefinedCategory(category) && (
+                                  <span className="text-xs text-gray-500">Suggested category</span>
+                                )}
+                              </span>
                             </button>
                           );
                         })

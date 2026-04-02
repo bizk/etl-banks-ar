@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { Transaction, Pagination, TransactionSummary, MonthlySummary, UploadPreview, PreviewTransaction } from '../types';
+import type { Transaction, Pagination, TransactionSummary, MonthlySummary, YearlySummary, UploadPreview, PreviewTransaction } from '../types';
 
 interface TransactionListResponse {
   transactions: Transaction[];
@@ -9,7 +9,7 @@ interface TransactionListResponse {
 
 interface TransactionFilters {
   month: string;
-  category?: string;
+  category?: string[];
   type?: string;
   sort?: string;
   order?: 'asc' | 'desc';
@@ -38,7 +38,11 @@ export const transactionsApi = {
   list: async (workspaceId: number, filters: TransactionFilters): Promise<TransactionListResponse> => {
     const params = new URLSearchParams();
     params.append('month', filters.month);
-    if (filters.category) params.append('category', filters.category);
+    filters.category?.forEach((category) => {
+      if (category) {
+        params.append('category', category);
+      }
+    });
     if (filters.type) params.append('type', filters.type);
     if (filters.sort) params.append('sort', filters.sort);
     if (filters.order) params.append('order', filters.order);
@@ -81,6 +85,13 @@ export const transactionsApi = {
   getSummary: async (workspaceId: number, month: string): Promise<{ summary: MonthlySummary }> => {
     const response = await apiClient.get<{ summary: MonthlySummary }>(
       `/workspaces/${workspaceId}/transactions/summary?month=${month}`
+    );
+    return response.data;
+  },
+
+  getYearlySummary: async (workspaceId: number, year: string): Promise<{ summary: YearlySummary }> => {
+    const response = await apiClient.get<{ summary: YearlySummary }>(
+      `/workspaces/${workspaceId}/transactions/yearly-summary?year=${year}`
     );
     return response.data;
   },

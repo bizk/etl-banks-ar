@@ -52,7 +52,7 @@ func (h *TransactionHandler) List(c *gin.Context) {
 	filter := services.TransactionFilter{
 		WorkspaceID: uint(workspaceID),
 		Month:       month,
-		Category:    c.Query("category"),
+		Categories:  c.QueryArray("category"),
 		Type:        c.Query("type"),
 		Page:        page,
 		PerPage:     perPage,
@@ -193,6 +193,24 @@ func (h *TransactionHandler) GetSummary(c *gin.Context) {
 	summary, err := h.transactionService.GetMonthlySummary(uint(workspaceID), month)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch summary"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"summary": summary})
+}
+
+func (h *TransactionHandler) GetYearlySummary(c *gin.Context) {
+	workspaceID, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+	year := c.Query("year")
+
+	if year == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "year parameter is required (YYYY)"})
+		return
+	}
+
+	summary, err := h.transactionService.GetYearlySummary(uint(workspaceID), year)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch yearly summary"})
 		return
 	}
 

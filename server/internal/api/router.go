@@ -64,6 +64,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 					workspace.GET("/transactions", transactionHandler.List)
 					workspace.POST("/transactions", transactionHandler.Create)
 					workspace.GET("/transactions/summary", transactionHandler.GetSummary)
+					workspace.GET("/transactions/yearly-summary", transactionHandler.GetYearlySummary)
 					workspace.POST("/transactions/upload", uploadHandler.Upload)
 					workspace.POST("/transactions/confirm", uploadHandler.Confirm)
 					workspace.GET("/transactions/:txn_id", transactionHandler.Get)

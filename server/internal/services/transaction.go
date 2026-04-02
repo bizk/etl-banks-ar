@@ -2,6 +2,7 @@ package services
 
 import (
 	"database/sql"
+	"sort"
 	"time"
 
 	"etl-banks-ar/internal/models"
@@ -20,7 +21,7 @@ func NewTransactionService(db *gorm.DB) *TransactionService {
 type TransactionFilter struct {
 	WorkspaceID uint
 	Month       string // YYYY-MM format
-	Category    string
+	Categories  []string
 	Type        string
 	Page        int
 	PerPage     int
@@ -55,8 +56,8 @@ func (s *TransactionService) List(filter TransactionFilter) (*PaginatedTransacti
 	}
 
 	// Filter by category
-	if filter.Category != "" {
-		query = query.Where("category = ?", filter.Category)
+	if len(filter.Categories) > 0 {
+		query = query.Where("category IN ?", filter.Categories)
 	}
 
 	// Filter by type
@@ -178,6 +179,25 @@ type MonthlySummary struct {
 	ByCategory    []CategorySummary `json:"by_category"`
 }
 
+type MonthlyCategoryAmount struct {
+	Month  string  `json:"month"`
+	Amount float64 `json:"amount"`
+}
+
+type YearlyCategorySummary struct {
+	Category string                  `json:"category"`
+	Amount   float64                 `json:"amount"`
+	Monthly  []MonthlyCategoryAmount `json:"monthly"`
+}
+
+type YearlySummary struct {
+	Year          string                  `json:"year"`
+	TotalSpending float64                 `json:"total_spending"`
+	TotalIncome   float64                 `json:"total_income"`
+	Net           float64                 `json:"net"`
+	ByCategory    []YearlyCategorySummary `json:"by_category"`
+}
+
 func (s *TransactionService) GetMonthlySummary(workspaceID uint, month string) (*MonthlySummary, error) {
 	startDate, err := time.Parse("2006-01", month)
 	if err != nil {
@@ -227,6 +247,94 @@ func (s *TransactionService) GetMonthlySummary(workspaceID uint, month string) (
 
 	return &MonthlySummary{
 		Month:         month,
+		TotalSpending: debitTotal.Float64,
+		TotalIncome:   creditTotal.Float64,
+		Net:           creditTotal.Float64 - debitTotal.Float64,
+		ByCategory:    categories,
+	}, nil
+}
+
+func (s *TransactionService) GetYearlySummary(workspaceID uint, year string) (*YearlySummary, error) {
+	startDate, err := time.Parse("2006", year)
+	if err != nil {
+		return nil, err
+	}
+	endDate := startDate.AddDate(1, 0, 0)
+
+	var debitTotal, creditTotal sql.NullFloat64
+
+	s.db.Model(&models.Transaction{}).
+		Where("workspace_id = ? AND date >= ? AND date < ? AND type = ?", workspaceID, startDate, endDate, "debit").
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&debitTotal)
+
+	s.db.Model(&models.Transaction{}).
+		Where("workspace_id = ? AND date >= ? AND date < ? AND type = ?", workspaceID, startDate, endDate, "credit").
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&creditTotal)
+
+	var categoryRows []struct {
+		Category string
+		Month    string
+		Amount   float64
+	}
+
+	s.db.Model(&models.Transaction{}).
+		Select("category, DATE_FORMAT(MIN(date), '%Y-%m-01') as month, COALESCE(SUM(amount), 0) as amount").
+		Where("workspace_id = ? AND date >= ? AND date < ? AND type = ?", workspaceID, startDate, endDate, "debit").
+		Group("category, YEAR(date), MONTH(date)").
+		Order("amount DESC, month ASC").
+		Scan(&categoryRows)
+
+	monthlyTemplate := make([]MonthlyCategoryAmount, 12)
+	for i := range monthlyTemplate {
+		monthlyTemplate[i] = MonthlyCategoryAmount{
+			Month:  startDate.AddDate(0, i, 0).Format("2006-01"),
+			Amount: 0,
+		}
+	}
+
+	categoriesByName := map[string]*YearlyCategorySummary{}
+	for _, row := range categoryRows {
+		name := row.Category
+		if name == "" {
+			name = "Uncategorized"
+		}
+
+		summary, exists := categoriesByName[name]
+		if !exists {
+			monthly := make([]MonthlyCategoryAmount, len(monthlyTemplate))
+			copy(monthly, monthlyTemplate)
+			summary = &YearlyCategorySummary{
+				Category: name,
+				Monthly:  monthly,
+			}
+			categoriesByName[name] = summary
+		}
+
+		rowMonth, err := time.Parse("2006-01-02", row.Month)
+		if err != nil {
+			continue
+		}
+
+		monthIndex := int(rowMonth.Month()) - 1
+		if monthIndex >= 0 && monthIndex < len(summary.Monthly) {
+			summary.Monthly[monthIndex].Amount = row.Amount
+		}
+		summary.Amount += row.Amount
+	}
+
+	categories := make([]YearlyCategorySummary, 0, len(categoriesByName))
+	for _, category := range categoriesByName {
+		categories = append(categories, *category)
+	}
+
+	sort.Slice(categories, func(i, j int) bool {
+		return categories[i].Amount > categories[j].Amount
+	})
+
+	return &YearlySummary{
+		Year:          year,
 		TotalSpending: debitTotal.Float64,
 		TotalIncome:   creditTotal.Float64,
 		Net:           creditTotal.Float64 - debitTotal.Float64,

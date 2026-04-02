@@ -72,6 +72,25 @@ export interface MonthlySummary {
   by_category: CategorySummary[];
 }
 
+export interface MonthlyCategoryAmount {
+  month: string;
+  amount: number;
+}
+
+export interface YearlyCategorySummary {
+  category: string;
+  amount: number;
+  monthly: MonthlyCategoryAmount[];
+}
+
+export interface YearlySummary {
+  year: string;
+  total_spending: number;
+  total_income: number;
+  net: number;
+  by_category: YearlyCategorySummary[];
+}
+
 export interface PreviewTransaction {
   temp_id: number;
   date: string;

@@ -7,8 +7,8 @@ import { workspacesApi } from '../../api/workspaces';
 
 const navItems = [
   { path: '/', icon: 'dashboard', label: 'Overview' },
-  { path: '/insights', icon: 'analytics', label: 'Insights' },
   { path: '/transactions', icon: 'receipt_long', label: 'Records' },
+  { path: '/insights', icon: 'analytics', label: 'Insights' },
   { path: '/workspaces', icon: 'workspaces', label: 'Workspaces' },
 ];
 

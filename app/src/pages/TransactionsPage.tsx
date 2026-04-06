@@ -18,10 +18,13 @@ interface TransactionFormData {
   amount: string;
   type: 'debit' | 'credit';
   category: string;
+  owner: string;
 }
 
 export function TransactionsPage() {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const selectedMonth = useWorkspaceStore((state) => state.selectedMonth);
+  const setSelectedMonth = useWorkspaceStore((state) => state.setSelectedMonth);
+  const currentDate = new Date(selectedMonth);
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -38,6 +41,7 @@ export function TransactionsPage() {
     amount: '',
     type: 'debit',
     category: '',
+    owner: '',
   });
 
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
@@ -55,7 +59,7 @@ export function TransactionsPage() {
         sort: 'date',
         order: sortOrder,
         page,
-        per_page: 20,
+        per_page: 50,
       }),
     enabled: !!currentWorkspace?.id,
   });
@@ -74,6 +78,7 @@ export function TransactionsPage() {
         amount: parseFloat(data.amount),
         type: data.type,
         category: data.category,
+        owner: data.owner || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
@@ -91,6 +96,7 @@ export function TransactionsPage() {
         amount: parseFloat(data.amount),
         type: data.type,
         category: data.category,
+        owner: data.owner || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
@@ -108,12 +114,12 @@ export function TransactionsPage() {
   });
 
   const handlePrevMonth = () => {
-    setCurrentDate(subMonths(currentDate, 1));
+    setSelectedMonth(subMonths(currentDate, 1));
     setPage(1);
   };
 
   const handleNextMonth = () => {
-    setCurrentDate(addMonths(currentDate, 1));
+    setSelectedMonth(addMonths(currentDate, 1));
     setPage(1);
   };
 
@@ -125,6 +131,7 @@ export function TransactionsPage() {
       amount: '',
       type: 'debit',
       category: '',
+      owner: '',
     });
     setShowCategorySuggestions(false);
     setShowModal(true);
@@ -138,6 +145,7 @@ export function TransactionsPage() {
       amount: getNumber(transaction.amount).toString(),
       type: getString(transaction.type) as 'debit' | 'credit',
       category: getString(transaction.category),
+      owner: getString(transaction.owner),
     });
     setShowCategorySuggestions(false);
     setShowModal(true);
@@ -523,6 +531,9 @@ export function TransactionsPage() {
                 <th className="text-right px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Amount
                 </th>
+                <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Owner
+                </th>
                 <th className="text-right px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Actions
                 </th>
@@ -548,6 +559,14 @@ export function TransactionsPage() {
                     </td>
                     <td className={`px-6 py-4 text-sm font-bold text-right ${type === 'credit' ? 'text-primary' : 'text-error'}`}>
                       {type === 'credit' ? '+' : '-'}${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4">
+                      {getString(t.owner) && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">
+                          <span className="material-symbols-outlined text-sm">person</span>
+                          {getString(t.owner)}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
@@ -763,6 +782,24 @@ export function TransactionsPage() {
                   {selectedCategoryIsPreset
                     ? 'Existing category selected. You can keep typing to switch or create a new one.'
                     : 'Type to filter existing categories or leave your custom value to create a new category.'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Owner</label>
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                    <span className="material-symbols-outlined text-gray-500">person</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.owner}
+                    onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
+                    className="w-full rounded-lg border-none bg-surface-container-low py-3 pl-14 pr-4"
+                    placeholder="Who made this expense?"
+                  />
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Enter the name of the person responsible for this transaction.
                 </p>
               </div>
               <div className="flex gap-4 pt-4">

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { format, addMonths, subMonths } from 'date-fns';
+import { addYears, format, subYears } from 'date-fns';
 import { ResponsiveContainer, Treemap } from 'recharts';
 import { transactionsApi } from '../api/transactions';
 import { useWorkspaceStore } from '../store/workspaceSlice';
@@ -78,8 +78,10 @@ function YearlyTreemapCell(props: {
 }
 
 export function InsightsPage() {
-  const [currentDate, setCurrentDate] = useState(new Date());
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
+  const selectedMonth = useWorkspaceStore((state) => state.selectedMonth);
+  const setSelectedMonth = useWorkspaceStore((state) => state.setSelectedMonth);
+  const currentDate = new Date(selectedMonth);
   const year = format(currentDate, 'yyyy');
 
   const { data: yearlySummaryData, isLoading } = useQuery({
@@ -90,8 +92,8 @@ export function InsightsPage() {
 
   const yearlySummary = yearlySummaryData?.summary;
 
-  const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1));
-  const handleNextMonth = () => setCurrentDate(addMonths(currentDate, 1));
+  const handlePrevYear = () => setSelectedMonth(subYears(currentDate, 1));
+  const handleNextYear = () => setSelectedMonth(addYears(currentDate, 1));
 
   const yearlyTreemapData = useMemo(
     () =>
@@ -159,14 +161,14 @@ export function InsightsPage() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-surface-container-low rounded-full px-2">
             <button
-              onClick={handlePrevMonth}
+              onClick={handlePrevYear}
               className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors"
             >
               <span className="material-symbols-outlined">chevron_left</span>
             </button>
             <span className="font-headline font-bold px-4">{year}</span>
             <button
-              onClick={handleNextMonth}
+              onClick={handleNextYear}
               className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors"
             >
               <span className="material-symbols-outlined">chevron_right</span>

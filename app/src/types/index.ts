@@ -39,6 +39,7 @@ export interface Transaction {
   balance_after?: { Float64: number; Valid: boolean } | number;
   type: { String: string; Valid: boolean } | string;
   category: { String: string; Valid: boolean } | string;
+  owner?: { String: string; Valid: boolean } | string;
   user_confirmed: boolean;
   created_at: string;
   updated_at: string;

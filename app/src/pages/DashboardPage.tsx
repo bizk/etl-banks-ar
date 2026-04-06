@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, addMonths, eachWeekOfInterval, endOfMonth, isSameMonth, parseISO, startOfMonth, subMonths } from 'date-fns';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
@@ -8,8 +8,10 @@ import { getCategoryMeta } from '../components/transactions/categoryMeta';
 import { getNumber, getString } from '../types';
 
 export function DashboardPage() {
-  const [currentDate, setCurrentDate] = useState(new Date());
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
+  const selectedMonth = useWorkspaceStore((state) => state.selectedMonth);
+  const setSelectedMonth = useWorkspaceStore((state) => state.setSelectedMonth);
+  const currentDate = new Date(selectedMonth);
   const month = format(currentDate, 'yyyy-MM');
 
   const { data: summaryData, isLoading } = useQuery({
@@ -31,29 +33,38 @@ export function DashboardPage() {
     enabled: !!currentWorkspace?.id,
   });
 
-  const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1));
-  const handleNextMonth = () => setCurrentDate(addMonths(currentDate, 1));
+  const handlePrevMonth = () => setSelectedMonth(subMonths(currentDate, 1));
+  const handleNextMonth = () => setSelectedMonth(addMonths(currentDate, 1));
 
   const summary = summaryData?.summary;
   const transactions = transactionData?.transactions || [];
 
-  const categoryData = useMemo(
-    () =>
-      summary?.by_category?.map((cat) => {
-        const name = cat.category || 'Uncategorized';
-        const meta = getCategoryMeta(name);
+  const categoryData = useMemo(() => {
+    // Filter to debits only and aggregate by category
+    const debitTransactions = transactions.filter((t) => getString(t.type) === 'debit');
+    const categoryTotals = debitTransactions.reduce((acc, t) => {
+      const category = getString(t.category) || 'Uncategorized';
+      const amount = getNumber(t.amount);
+      acc[category] = (acc[category] || 0) + amount;
+      return acc;
+    }, {} as Record<string, number>);
 
+    const totalSpending = Object.values(categoryTotals).reduce((sum, val) => sum + val, 0);
+
+    return Object.entries(categoryTotals)
+      .map(([name, value]) => {
+        const meta = getCategoryMeta(name);
         return {
           name,
-          value: cat.amount,
+          value,
           fill: meta.chartColor,
           icon: meta.icon,
           badgeClassName: meta.badgeClassName,
-          percentage: cat.percentage,
+          percentage: totalSpending > 0 ? (value / totalSpending) * 100 : 0,
         };
-      }) || [],
-    [summary?.by_category]
-  );
+      })
+      .sort((a, b) => b.value - a.value);
+  }, [transactions]);
 
   const weeklyData = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
@@ -86,8 +97,6 @@ export function DashboardPage() {
       };
     });
   }, [currentDate, transactions]);
-
-  const recentTransactions = transactions.slice(0, 6);
 
   const renderWeeklyValueLabel = (props: {
     x?: number;
@@ -301,87 +310,38 @@ export function DashboardPage() {
             </section>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-8">
-            <section className="bg-surface-container-lowest p-8 rounded-xl">
-              <h3 className="text-xl font-headline font-bold mb-8">Category Breakdown</h3>
-              <div className="space-y-5">
-                {categoryData.map((cat) => (
-                  <div key={cat.name}>
-                    <div className="flex justify-between gap-4 text-sm mb-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ${cat.badgeClassName}`}>
-                          <span className="material-symbols-outlined text-lg">{cat.icon}</span>
-                        </span>
-                        <span className="font-semibold truncate">{cat.name}</span>
-                      </div>
-                      <span className="text-on-surface-variant font-medium text-right whitespace-nowrap">
-                        ${cat.value.toLocaleString('en-US', { minimumFractionDigits: 2 })} ({cat.percentage.toFixed(1)}%)
+          <section className="bg-surface-container-lowest p-8 rounded-xl">
+            <h3 className="text-xl font-headline font-bold mb-8">Category Breakdown</h3>
+            <div className="space-y-5">
+              {categoryData.map((cat) => (
+                <div key={cat.name}>
+                  <div className="flex justify-between gap-4 text-sm mb-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ${cat.badgeClassName}`}>
+                        <span className="material-symbols-outlined text-lg">{cat.icon}</span>
                       </span>
+                      <span className="font-semibold truncate">{cat.name}</span>
                     </div>
-                    <div className="w-full h-2.5 bg-surface-container-low rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${Math.min(cat.percentage, 100)}%`,
-                          backgroundColor: cat.fill,
-                        }}
-                      ></div>
-                    </div>
+                    <span className="text-on-surface-variant font-medium text-right whitespace-nowrap">
+                      ${cat.value.toLocaleString('en-US', { minimumFractionDigits: 2 })} ({cat.percentage.toFixed(1)}%)
+                    </span>
                   </div>
-                ))}
-                {categoryData.length === 0 && (
-                  <p className="text-gray-400 text-center py-8">No transactions this month</p>
-                )}
-              </div>
-            </section>
-
-            <section className="bg-surface-container-lowest p-8 rounded-xl">
-              <div className="flex items-center justify-between gap-4 mb-8">
-                <div>
-                  <h3 className="text-xl font-headline font-bold">Recent Records</h3>
-                  <p className="text-sm text-on-surface-variant mt-1">
-                    Latest transactions in {format(currentDate, 'MMMM yyyy')}
-                  </p>
+                  <div className="w-full h-2.5 bg-surface-container-low rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.min(cat.percentage, 100)}%`,
+                        backgroundColor: cat.fill,
+                      }}
+                    ></div>
+                  </div>
                 </div>
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface-container-low text-on-surface">
-                  <span className="material-symbols-outlined">history</span>
-                </span>
-              </div>
-
-              <div className="space-y-4">
-                {recentTransactions.map((transaction) => {
-                  const category = getString(transaction.category) || 'Uncategorized';
-                  const meta = getCategoryMeta(category);
-                  const amount = getNumber(transaction.amount);
-                  const type = getString(transaction.type);
-
-                  return (
-                    <div key={transaction.id} className="flex items-start justify-between gap-4 rounded-2xl bg-surface-container-low p-4">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ${meta.badgeClassName}`}>
-                          <span className="material-symbols-outlined text-lg">{meta.icon}</span>
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-semibold truncate">{getString(transaction.description) || 'Untitled transaction'}</p>
-                          <div className="flex items-center gap-2 text-sm text-on-surface-variant mt-1 min-w-0">
-                            <span className="truncate">{category}</span>
-                            <span className="opacity-40">•</span>
-                            <span>{format(parseISO(transaction.date), 'MMM dd')}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <span className={`shrink-0 text-sm font-bold ${type === 'credit' ? 'text-primary' : 'text-error'}`}>
-                        {type === 'credit' ? '+' : '-'}${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })}
-                {recentTransactions.length === 0 && (
-                  <p className="text-gray-400 text-center py-8">No recent records for this month</p>
-                )}
-              </div>
-            </section>
-          </div>
+              ))}
+              {categoryData.length === 0 && (
+                <p className="text-gray-400 text-center py-8">No transactions this month</p>
+              )}
+            </div>
+          </section>
         </>
       )}
     </div>

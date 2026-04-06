@@ -23,6 +23,7 @@ interface CreateTransactionInput {
   amount: number;
   type: 'debit' | 'credit';
   category?: string;
+  owner?: string;
 }
 
 interface UpdateTransactionInput {
@@ -31,6 +32,7 @@ interface UpdateTransactionInput {
   amount?: number;
   type?: 'debit' | 'credit';
   category?: string;
+  owner?: string;
   user_confirmed?: boolean;
 }
 

@@ -3,12 +3,14 @@ import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authSlice';
 import { useWorkspaceStore } from '../../store/workspaceSlice';
+import { useThemeStore } from '../../store/themeSlice';
 import { workspacesApi } from '../../api/workspaces';
 
 const navItems = [
   { path: '/', icon: 'dashboard', label: 'Overview' },
   { path: '/transactions', icon: 'receipt_long', label: 'Records' },
   { path: '/insights', icon: 'analytics', label: 'Insights' },
+  { path: '/areas', icon: 'category', label: 'Areas' },
   { path: '/workspaces', icon: 'workspaces', label: 'Workspaces' },
 ];
 
@@ -17,6 +19,7 @@ export function Layout() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { workspaces, currentWorkspace, setWorkspaces, setCurrentWorkspace } = useWorkspaceStore();
+  const { theme, toggleTheme } = useThemeStore();
 
   const { data: workspacesData } = useQuery({
     queryKey: ['workspaces'],
@@ -45,21 +48,21 @@ export function Layout() {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <aside className="hidden md:flex flex-col h-screen w-64 bg-gray-50 py-8 px-6 space-y-8 sticky top-0 border-r border-surface-container">
+      <aside className="hidden md:flex flex-col h-screen w-64 bg-surface-container-low py-8 px-6 space-y-8 sticky top-0 border-r border-surface-container">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center">
             <span className="material-symbols-outlined text-white" style={{ fontVariationSettings: "'FILL' 1" }}>spa</span>
           </div>
           <div>
-            <h2 className="text-lg font-headline font-black text-emerald-600 leading-none">Etheric</h2>
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mt-1">Precision Organicism</p>
+            <h2 className="text-lg font-headline font-black text-primary leading-none">Etheric</h2>
+            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant opacity-60 font-bold mt-1">Precision Organicism</p>
           </div>
         </div>
 
         {/* Workspace Selector */}
         {workspaces.length > 0 && (
           <div className="px-2">
-            <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Workspace</label>
+            <label className="text-[10px] uppercase tracking-widest text-on-surface-variant opacity-60 font-bold">Workspace</label>
             <select
               value={currentWorkspace?.id || ''}
               onChange={(e) => {
@@ -84,8 +87,8 @@ export function Layout() {
               to={item.path}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 isActive(item.path)
-                  ? 'text-emerald-600 font-semibold bg-emerald-50/50'
-                  : 'text-gray-500 hover:bg-emerald-50/50 hover:text-emerald-600'
+                  ? 'text-primary font-semibold bg-primary/10'
+                  : 'text-on-surface-variant hover:bg-primary/10 hover:text-primary'
               }`}
             >
               <span
@@ -114,11 +117,20 @@ export function Layout() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user?.name}</p>
-              <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+              <p className="text-xs text-on-surface-variant truncate">{user?.email}</p>
             </div>
             <button
+              onClick={toggleTheme}
+              className="text-on-surface-variant hover:text-on-surface transition-colors"
+              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            >
+              <span className="material-symbols-outlined text-xl">
+                {theme === 'light' ? 'dark_mode' : 'light_mode'}
+              </span>
+            </button>
+            <button
               onClick={handleLogout}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-on-surface-variant hover:text-on-surface transition-colors"
               title="Sign out"
             >
               <span className="material-symbols-outlined text-xl">logout</span>

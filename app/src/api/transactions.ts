@@ -99,10 +99,14 @@ export const transactionsApi = {
   },
 
   getCategories: async (workspaceId: number): Promise<{ categories: string[] }> => {
-    const response = await apiClient.get<{ categories: string[] }>(
+    const response = await apiClient.get<{ categories: Array<{ name: string } | string> }>(
       `/workspaces/${workspaceId}/categories`
     );
-    return response.data;
+    // Handle both string[] (old format) and Category[] (new format)
+    const categories = response.data.categories.map((c) =>
+      typeof c === 'string' ? c : c.name
+    );
+    return { categories };
   },
 
   uploadPDF: async (workspaceId: number, file: File): Promise<{ preview: UploadPreview }> => {

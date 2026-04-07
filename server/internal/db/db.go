@@ -36,6 +36,8 @@ func Migrate() {
 		&models.Workspace{},
 		&models.WorkspaceMember{},
 		&models.WorkspaceInvite{},
+		&models.Area{},
+		&models.Category{},
 		&models.Transaction{},
 	)
 	if err != nil {

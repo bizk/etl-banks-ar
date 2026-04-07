@@ -113,9 +113,9 @@ export function WorkspacesPage() {
         </div>
       ) : displayWorkspaces.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 bg-surface-container-lowest rounded-xl">
-          <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">workspaces</span>
-          <h2 className="text-xl font-headline font-bold text-gray-600">No Workspaces Yet</h2>
-          <p className="text-gray-400 mt-2 mb-6">Create your first workspace to get started</p>
+          <span className="material-symbols-outlined text-6xl text-on-surface-variant opacity-30 mb-4">workspaces</span>
+          <h2 className="text-xl font-headline font-bold text-on-surface-variant">No Workspaces Yet</h2>
+          <p className="text-on-surface-variant mt-2 mb-6">Create your first workspace to get started</p>
           <button
             onClick={() => setShowCreateModal(true)}
             className="bg-primary-container text-white font-headline font-bold py-3 px-6 rounded-xl flex items-center gap-2 hover:opacity-90 transition-opacity"
@@ -132,7 +132,7 @@ export function WorkspacesPage() {
               className={`bg-surface-container-lowest p-6 rounded-xl border-2 transition-all ${
                 currentWorkspace?.id === ws.id
                   ? 'border-primary-container'
-                  : 'border-transparent hover:border-gray-200'
+                  : 'border-transparent hover:border-surface-container'
               }`}
             >
               <div className="flex items-start justify-between mb-4">
@@ -145,7 +145,7 @@ export function WorkspacesPage() {
                       ? 'bg-primary-container/10 text-primary'
                       : ws.role === 'admin'
                       ? 'bg-secondary-container text-secondary'
-                      : 'bg-gray-100 text-gray-600'
+                      : 'bg-surface-container text-on-surface-variant'
                   }`}
                 >
                   {ws.role}
@@ -153,7 +153,7 @@ export function WorkspacesPage() {
               </div>
 
               <h3 className="text-lg font-headline font-bold mb-1">{ws.name}</h3>
-              <p className="text-sm text-gray-400 mb-4">
+              <p className="text-sm text-on-surface-variant mb-4">
                 Created {new Date(ws.created_at).toLocaleDateString()}
               </p>
 
@@ -196,11 +196,11 @@ export function WorkspacesPage() {
       {/* Create Workspace Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md">
+          <div className="bg-surface-container-lowest rounded-2xl p-8 w-full max-w-md">
             <h2 className="text-xl font-headline font-bold mb-6">Create Workspace</h2>
             <form onSubmit={handleCreateWorkspace}>
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-600 mb-1">Workspace Name</label>
+                <label className="block text-sm font-medium text-on-surface-variant mb-1">Workspace Name</label>
                 <input
                   type="text"
                   value={workspaceName}
@@ -214,7 +214,7 @@ export function WorkspacesPage() {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-3 rounded-xl border border-gray-200 font-medium hover:bg-gray-50"
+                  className="flex-1 py-3 rounded-xl border border-surface-container font-medium hover:bg-surface-container-low"
                 >
                   Cancel
                 </button>
@@ -234,11 +234,11 @@ export function WorkspacesPage() {
       {/* Invite Modal */}
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md">
+          <div className="bg-surface-container-lowest rounded-2xl p-8 w-full max-w-md">
             <h2 className="text-xl font-headline font-bold mb-6">Invite to Workspace</h2>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-600 mb-1">
+              <label className="block text-sm font-medium text-on-surface-variant mb-1">
                 Email (optional)
               </label>
               <input
@@ -248,20 +248,20 @@ export function WorkspacesPage() {
                 className="w-full px-4 py-3 rounded-lg bg-surface-container-low border-none"
                 placeholder="member@example.com"
               />
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-on-surface-variant mt-1">
                 Leave empty to generate a shareable invite link
               </p>
             </div>
 
             {inviteLink && (
               <div className="mb-6 p-4 bg-primary-container/10 rounded-lg">
-                <p className="text-sm font-medium text-gray-600 mb-2">Invite Link</p>
+                <p className="text-sm font-medium text-on-surface-variant mb-2">Invite Link</p>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     readOnly
                     value={inviteLink}
-                    className="flex-1 px-3 py-2 rounded-lg bg-white border text-sm"
+                    className="flex-1 px-3 py-2 rounded-lg bg-surface-container-lowest border text-sm"
                   />
                   <button
                     onClick={() => navigator.clipboard.writeText(inviteLink)}
@@ -280,7 +280,7 @@ export function WorkspacesPage() {
                   setShowInviteModal(false);
                   setInviteLink('');
                 }}
-                className="flex-1 py-3 rounded-xl border border-gray-200 font-medium hover:bg-gray-50"
+                className="flex-1 py-3 rounded-xl border border-surface-container font-medium hover:bg-surface-container-low"
               >
                 Close
               </button>
@@ -301,7 +301,7 @@ export function WorkspacesPage() {
       {/* Members Modal */}
       {showMembersModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md">
+          <div className="bg-surface-container-lowest rounded-2xl p-8 w-full max-w-md">
             <h2 className="text-xl font-headline font-bold mb-6">Workspace Members</h2>
 
             <div className="space-y-3 max-h-80 overflow-y-auto">
@@ -316,7 +316,7 @@ export function WorkspacesPage() {
                     </div>
                     <div>
                       <p className="font-medium">User #{member.user_id}</p>
-                      <p className="text-xs text-gray-400">{member.role}</p>
+                      <p className="text-xs text-on-surface-variant">{member.role}</p>
                     </div>
                   </div>
                   {member.role !== 'owner' && member.user_id !== user?.id && (
@@ -330,13 +330,13 @@ export function WorkspacesPage() {
                 </div>
               ))}
               {(!membersData?.members || membersData.members.length === 0) && (
-                <p className="text-center text-gray-400 py-8">No members found</p>
+                <p className="text-center text-on-surface-variant py-8">No members found</p>
               )}
             </div>
 
             <button
               onClick={() => setShowMembersModal(false)}
-              className="w-full mt-6 py-3 rounded-xl border border-gray-200 font-medium hover:bg-gray-50"
+              className="w-full mt-6 py-3 rounded-xl border border-surface-container font-medium hover:bg-surface-container-low"
             >
               Close
             </button>

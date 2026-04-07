@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addMonths, subMonths } from 'date-fns';
 import { transactionsApi } from '../api/transactions';
+import { categoriesApi } from '../api/categories';
 import { useWorkspaceStore } from '../store/workspaceSlice';
-import { getString, getNumber, Transaction } from '../types';
+import { getString, getNumber, Transaction, Category } from '../types';
 import { UploadPreviewModal } from '../components/transactions/UploadPreviewModal';
 import {
   getCategoryMeta,
@@ -65,10 +66,42 @@ export function TransactionsPage() {
   });
 
   const { data: categoriesData } = useQuery({
-    queryKey: ['categories', currentWorkspace?.id],
-    queryFn: () => transactionsApi.getCategories(currentWorkspace!.id),
+    queryKey: ['categoriesList', currentWorkspace?.id],
+    queryFn: () => categoriesApi.list(currentWorkspace!.id),
     enabled: !!currentWorkspace?.id,
   });
+
+  // Create a map for quick category lookup by name
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, Category>();
+    categoriesData?.categories?.forEach((cat) => {
+      map.set(normalizeCategory(cat.name), cat);
+    });
+    return map;
+  }, [categoriesData]);
+
+  // Helper to get category display info (icon, color) from Category object or fallback
+  const getCategoryDisplay = (categoryName: string) => {
+    const normalized = normalizeCategory(categoryName);
+    const dbCategory = categoryMap.get(normalized);
+    if (dbCategory && (dbCategory.icon || dbCategory.color)) {
+      return {
+        icon: dbCategory.icon || getCategoryMeta(categoryName).icon,
+        color: dbCategory.color || null,
+        badgeClassName: dbCategory.color
+          ? ''
+          : getCategoryMeta(categoryName).badgeClassName,
+        useCustomColor: !!dbCategory.color,
+      };
+    }
+    const meta = getCategoryMeta(categoryName);
+    return {
+      icon: meta.icon,
+      color: null,
+      badgeClassName: meta.badgeClassName,
+      useCustomColor: false,
+    };
+  };
 
   const createMutation = useMutation({
     mutationFn: (data: TransactionFormData) =>
@@ -189,9 +222,9 @@ export function TransactionsPage() {
   if (!currentWorkspace) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
-        <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">workspaces</span>
-        <h2 className="text-xl font-headline font-bold text-gray-600">No Workspace Selected</h2>
-        <p className="text-gray-400 mt-2">Create or select a workspace to get started</p>
+        <span className="material-symbols-outlined text-6xl text-on-surface-variant opacity-30 mb-4">workspaces</span>
+        <h2 className="text-xl font-headline font-bold text-on-surface-variant">No Workspace Selected</h2>
+        <p className="text-on-surface-variant mt-2">Create or select a workspace to get started</p>
       </div>
     );
   }
@@ -200,27 +233,50 @@ export function TransactionsPage() {
   const pagination = data?.pagination;
   const summary = data?.summary;
   const categories = categoriesData?.categories || [];
-  const selectedCategoryIsPreset = isPredefinedCategory(formData.category);
+  const categoryNames = categories.map((c) => c.name);
+  const selectedCategoryIsPreset = isPredefinedCategory(formData.category) || categoryMap.has(normalizeCategory(formData.category));
   const normalizedCategoryInput = normalizeCategory(formData.category);
-  const categoryOptions = Array.from(
-    new Map(
-      [...PREDEFINED_CATEGORIES, ...categories]
-        .filter((category) => category && category.trim())
-        .map((category) => [normalizeCategory(category), category.trim()])
-    ).values()
+
+  // Build category options: DB categories first, then predefined ones not in DB
+  const dbCategorySet = new Set(categoryNames.map((c) => normalizeCategory(c)));
+  const predefinedNotInDb = PREDEFINED_CATEGORIES.filter(
+    (c) => c && c.trim() && !dbCategorySet.has(normalizeCategory(c))
   );
+  const categoryOptions = [
+    ...categoryNames.filter((c) => c && c.trim()),
+    ...predefinedNotInDb,
+  ];
+
   const filteredCategoryOptions = categoryOptions
     .filter((category) => {
       if (!normalizedCategoryInput) {
         return true;
       }
-
       return normalizeCategory(category).includes(normalizedCategoryInput);
+    })
+    .sort((a, b) => {
+      // Sort: exact match first, then starts-with, then contains
+      const aNorm = normalizeCategory(a);
+      const bNorm = normalizeCategory(b);
+      const aExact = aNorm === normalizedCategoryInput;
+      const bExact = bNorm === normalizedCategoryInput;
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+      const aStarts = aNorm.startsWith(normalizedCategoryInput);
+      const bStarts = bNorm.startsWith(normalizedCategoryInput);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      // DB categories before predefined
+      const aInDb = dbCategorySet.has(aNorm);
+      const bInDb = dbCategorySet.has(bNorm);
+      if (aInDb && !bInDb) return -1;
+      if (!aInDb && bInDb) return 1;
+      return a.localeCompare(b);
     })
     .slice(0, 8);
   const filterCategoryOptions = Array.from(
     new Map(
-      categories
+      categoryNames
         .filter((category) => category && category.trim())
         .map((category) => [normalizeCategory(category), category.trim() || 'Uncategorized'])
     ).values()
@@ -288,19 +344,19 @@ export function TransactionsPage() {
       {summary && (
         <div className="grid grid-cols-3 gap-4 mb-8">
           <div className="bg-surface-container-lowest p-4 rounded-xl">
-            <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">Debits</p>
+            <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Debits</p>
             <p className="text-xl font-bold text-error">
               -${summary.debit_total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
           </div>
           <div className="bg-surface-container-lowest p-4 rounded-xl">
-            <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">Credits</p>
+            <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Credits</p>
             <p className="text-xl font-bold text-primary">
               +${summary.credit_total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
           </div>
           <div className="bg-surface-container-lowest p-4 rounded-xl">
-            <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">Total</p>
+            <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Total</p>
             <p className="text-xl font-bold">
               ${summary.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
@@ -359,14 +415,15 @@ export function TransactionsPage() {
                         <span className="text-xs text-on-surface-variant">Search and choose one or more categories</span>
                       ) : (
                         categoryFilter.map((category) => {
-                          const categoryMeta = getCategoryMeta(category);
+                          const display = getCategoryDisplay(category);
 
                           return (
                             <span
                               key={normalizeCategory(category)}
-                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${categoryMeta.badgeClassName}`}
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${display.useCustomColor ? 'text-white ring-white/20' : display.badgeClassName}`}
+                              style={display.useCustomColor ? { backgroundColor: display.color! } : undefined}
                             >
-                              <span className="material-symbols-outlined text-sm">{categoryMeta.icon}</span>
+                              <span className="material-symbols-outlined text-sm">{display.icon}</span>
                               {category}
                             </span>
                           );
@@ -380,9 +437,9 @@ export function TransactionsPage() {
                 </button>
 
                 {showCategoryFilterMenu && (
-                  <div className="absolute z-20 mt-2 w-full rounded-2xl border border-gray-200 bg-white p-3 shadow-xl">
+                  <div className="absolute z-20 mt-2 w-full rounded-2xl border border-surface-container bg-surface-container-lowest p-3 shadow-xl">
                     <div className="relative">
-                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-on-surface-variant">
                         <span className="material-symbols-outlined text-base">search</span>
                       </span>
                       <input
@@ -390,7 +447,7 @@ export function TransactionsPage() {
                         value={categoryFilterSearch}
                         onChange={(e) => setCategoryFilterSearch(e.target.value)}
                         placeholder="Search categories"
-                        className="w-full rounded-xl border border-gray-200 bg-surface-container-low py-3 pl-11 pr-4 text-sm outline-none transition-colors focus:border-primary-container"
+                        className="w-full rounded-xl border border-surface-container bg-surface-container-low py-3 pl-11 pr-4 text-sm outline-none transition-colors focus:border-primary-container"
                       />
                     </div>
 
@@ -424,7 +481,7 @@ export function TransactionsPage() {
                     <div className="mt-3 max-h-72 overflow-y-auto space-y-1">
                       {filteredCategoryFilterOptions.length > 0 ? (
                         filteredCategoryFilterOptions.map((category) => {
-                          const categoryMeta = getCategoryMeta(category);
+                          const display = getCategoryDisplay(category);
                           const isSelected = categoryFilter.some(
                             (selected) => normalizeCategory(selected) === normalizeCategory(category)
                           );
@@ -439,9 +496,10 @@ export function TransactionsPage() {
                             >
                               <span className="flex min-w-0 items-center gap-3">
                                 <span
-                                  className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ${categoryMeta.badgeClassName}`}
+                                  className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ${display.useCustomColor ? 'text-white ring-white/20' : display.badgeClassName}`}
+                                  style={display.useCustomColor ? { backgroundColor: display.color! } : undefined}
                                 >
-                                  <span className="material-symbols-outlined text-lg">{categoryMeta.icon}</span>
+                                  <span className="material-symbols-outlined text-lg">{display.icon}</span>
                                 </span>
                                 <span className="truncate text-sm font-medium">{category}</span>
                               </span>
@@ -452,7 +510,7 @@ export function TransactionsPage() {
                           );
                         })
                       ) : (
-                        <div className="px-3 py-4 text-sm text-gray-500">No categories match your search.</div>
+                        <div className="px-3 py-4 text-sm text-on-surface-variant">No categories match your search.</div>
                       )}
                     </div>
                   </div>
@@ -503,7 +561,7 @@ export function TransactionsPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-container"></div>
           </div>
         ) : transactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-16 text-on-surface-variant">
             <span className="material-symbols-outlined text-5xl mb-4">receipt_long</span>
             <p>No transactions found</p>
           </div>
@@ -511,7 +569,7 @@ export function TransactionsPage() {
           <table className="w-full">
             <thead className="bg-surface-container-low">
               <tr>
-                <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                   <button
                     onClick={handleSortToggle}
                     className="inline-flex items-center gap-1 transition-colors hover:text-on-surface"
@@ -522,19 +580,19 @@ export function TransactionsPage() {
                     </span>
                   </button>
                 </th>
-                <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                   Description
                 </th>
-                <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                   Category
                 </th>
-                <th className="text-right px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="text-right px-6 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                   Amount
                 </th>
-                <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                   Owner
                 </th>
-                <th className="text-right px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="text-right px-6 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                   Actions
                 </th>
               </tr>
@@ -544,16 +602,17 @@ export function TransactionsPage() {
                 const type = getString(t.type);
                 const amount = getNumber(t.amount);
                 const category = getString(t.category);
-                const categoryMeta = getCategoryMeta(category);
+                const display = getCategoryDisplay(category);
                 return (
                   <tr key={t.id} className="hover:bg-surface-container-low/50">
                     <td className="px-6 py-4 text-sm">{format(new Date(t.date), 'MMM dd, yyyy')}</td>
                     <td className="px-6 py-4 text-sm font-medium">{getString(t.description)}</td>
                     <td className="px-6 py-4">
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${categoryMeta.badgeClassName}`}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${display.useCustomColor ? 'text-white ring-white/20' : display.badgeClassName}`}
+                        style={display.useCustomColor ? { backgroundColor: display.color! } : undefined}
                       >
-                        <span className="material-symbols-outlined text-sm">{categoryMeta.icon}</span>
+                        <span className="material-symbols-outlined text-sm">{display.icon}</span>
                         {category || 'Uncategorized'}
                       </span>
                     </td>
@@ -571,13 +630,13 @@ export function TransactionsPage() {
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => openEditModal(t)}
-                        className="text-gray-400 hover:text-primary p-1"
+                        className="text-on-surface-variant hover:text-primary p-1"
                       >
                         <span className="material-symbols-outlined text-xl">edit</span>
                       </button>
                       <button
                         onClick={() => handleDelete(t.id)}
-                        className="text-gray-400 hover:text-error p-1 ml-2"
+                        className="text-on-surface-variant hover:text-error p-1 ml-2"
                       >
                         <span className="material-symbols-outlined text-xl">delete</span>
                       </button>
@@ -600,7 +659,7 @@ export function TransactionsPage() {
           >
             Previous
           </button>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-on-surface-variant">
             Page {page} of {pagination.total_pages}
           </span>
           <button
@@ -616,13 +675,13 @@ export function TransactionsPage() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md">
+          <div className="bg-surface-container-lowest rounded-2xl p-8 w-full max-w-md">
             <h2 className="text-xl font-headline font-bold mb-6">
               {editingId ? 'Edit Transaction' : 'New Transaction'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Date</label>
+                <label className="block text-sm font-medium text-on-surface-variant mb-1">Date</label>
                 <input
                   type="date"
                   value={formData.date}
@@ -632,7 +691,7 @@ export function TransactionsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Description</label>
+                <label className="block text-sm font-medium text-on-surface-variant mb-1">Description</label>
                 <input
                   type="text"
                   value={formData.description}
@@ -643,7 +702,7 @@ export function TransactionsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Amount</label>
+                <label className="block text-sm font-medium text-on-surface-variant mb-1">Amount</label>
                 <input
                   type="number"
                   step="0.01"
@@ -655,7 +714,7 @@ export function TransactionsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Type</label>
+                <label className="block text-sm font-medium text-on-surface-variant mb-1">Type</label>
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     {
@@ -681,7 +740,7 @@ export function TransactionsPage() {
                         className={`relative flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 ring-1 ring-inset transition-colors ${
                           isActive
                             ? option.activeClassName
-                            : 'border-gray-200 bg-surface-container-low text-gray-600 ring-transparent hover:bg-surface-container'
+                            : 'border-surface-container bg-surface-container-low text-on-surface-variant ring-transparent hover:bg-surface-container'
                         }`}
                       >
                         <input
@@ -703,11 +762,11 @@ export function TransactionsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Category</label>
+                <label className="block text-sm font-medium text-on-surface-variant mb-1">Category</label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                    <span className="material-symbols-outlined text-gray-500">
-                      {getCategoryMeta(formData.category).icon}
+                    <span className="material-symbols-outlined text-on-surface-variant">
+                      {getCategoryDisplay(formData.category).icon}
                     </span>
                   </div>
                   <input
@@ -729,7 +788,7 @@ export function TransactionsPage() {
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setShowCategorySuggestions((current) => !current)}
-                    className="absolute inset-y-0 right-0 flex items-center px-4 text-gray-500"
+                    className="absolute inset-y-0 right-0 flex items-center px-4 text-on-surface-variant"
                     aria-label="Toggle category options"
                   >
                     <span className="material-symbols-outlined">
@@ -737,11 +796,12 @@ export function TransactionsPage() {
                     </span>
                   </button>
                   {showCategorySuggestions && (
-                    <div className="absolute z-10 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
+                    <div className="absolute z-10 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-surface-container bg-surface-container-lowest p-2 shadow-xl">
                       {filteredCategoryOptions.length > 0 ? (
                         filteredCategoryOptions.map((category) => {
-                          const categoryMeta = getCategoryMeta(category);
+                          const display = getCategoryDisplay(category);
                           const isSelected = normalizeCategory(category) === normalizedCategoryInput;
+                          const isFromDb = categoryMap.has(normalizeCategory(category));
 
                           return (
                             <button
@@ -757,38 +817,41 @@ export function TransactionsPage() {
                               }`}
                             >
                               <span
-                                className={`inline-flex h-9 w-9 items-center justify-center rounded-full ring-1 ring-inset ${categoryMeta.badgeClassName}`}
+                                className={`inline-flex h-9 w-9 items-center justify-center rounded-full ring-1 ring-inset ${display.useCustomColor ? 'text-white ring-white/20' : display.badgeClassName}`}
+                                style={display.useCustomColor ? { backgroundColor: display.color! } : undefined}
                               >
-                                <span className="material-symbols-outlined text-lg">{categoryMeta.icon}</span>
+                                <span className="material-symbols-outlined text-lg">{display.icon}</span>
                               </span>
                               <span className="flex flex-col">
                                 <span className="text-sm font-medium">{category}</span>
-                                {isPredefinedCategory(category) && (
-                                  <span className="text-xs text-gray-500">Suggested category</span>
+                                {(isPredefinedCategory(category) || isFromDb) && (
+                                  <span className="text-xs text-on-surface-variant">
+                                    {isFromDb ? 'Existing category' : 'Suggested category'}
+                                  </span>
                                 )}
                               </span>
                             </button>
                           );
                         })
                       ) : (
-                        <div className="px-3 py-3 text-sm text-gray-500">
+                        <div className="px-3 py-3 text-sm text-on-surface-variant">
                           No matching category. Press save to create "{formData.category}".
                         </div>
                       )}
                     </div>
                   )}
                 </div>
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-on-surface-variant">
                   {selectedCategoryIsPreset
                     ? 'Existing category selected. You can keep typing to switch or create a new one.'
                     : 'Type to filter existing categories or leave your custom value to create a new category.'}
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Owner</label>
+                <label className="block text-sm font-medium text-on-surface-variant mb-1">Owner</label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                    <span className="material-symbols-outlined text-gray-500">person</span>
+                    <span className="material-symbols-outlined text-on-surface-variant">person</span>
                   </div>
                   <input
                     type="text"
@@ -798,7 +861,7 @@ export function TransactionsPage() {
                     placeholder="Who made this expense?"
                   />
                 </div>
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-on-surface-variant">
                   Enter the name of the person responsible for this transaction.
                 </p>
               </div>
@@ -806,7 +869,7 @@ export function TransactionsPage() {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 py-3 rounded-xl border border-gray-200 font-medium hover:bg-gray-50"
+                  className="flex-1 py-3 rounded-xl border border-surface-container font-medium hover:bg-surface-container-low"
                 >
                   Cancel
                 </button>

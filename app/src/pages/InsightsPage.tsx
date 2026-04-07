@@ -142,9 +142,9 @@ export function InsightsPage() {
   if (!currentWorkspace) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
-        <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">workspaces</span>
-        <h2 className="text-xl font-headline font-bold text-gray-600">No Workspace Selected</h2>
-        <p className="text-gray-400 mt-2">Create or select a workspace to get started</p>
+        <span className="material-symbols-outlined text-6xl text-on-surface-variant opacity-30 mb-4">workspaces</span>
+        <h2 className="text-xl font-headline font-bold text-on-surface-variant">No Workspace Selected</h2>
+        <p className="text-on-surface-variant mt-2">Create or select a workspace to get started</p>
       </div>
     );
   }
@@ -231,7 +231,7 @@ export function InsightsPage() {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="h-80 flex items-center justify-center text-gray-400">
+                <div className="h-80 flex items-center justify-center text-on-surface-variant">
                   No yearly category data available
                 </div>
               )}
@@ -321,7 +321,7 @@ export function InsightsPage() {
                               ? 'bg-emerald-50 text-emerald-700'
                               : entry.tone === 'negative'
                                 ? 'bg-rose-50 text-rose-700'
-                                : 'bg-slate-100 text-slate-600';
+                                : 'bg-surface-container text-on-surface-variant';
 
                           return (
                             <div key={`${category.category}-${entry.month}`} className={`rounded-2xl p-3 text-center ${toneClassName}`}>
@@ -341,7 +341,7 @@ export function InsightsPage() {
                 </div>
               </div>
             ) : (
-              <p className="text-gray-400 text-center py-8">No yearly comparison data available</p>
+              <p className="text-on-surface-variant text-center py-8">No yearly comparison data available</p>
             )}
           </section>
         </>

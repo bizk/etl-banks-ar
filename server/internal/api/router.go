@@ -20,12 +20,16 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	workspaceService := services.NewWorkspaceService(db)
 	transactionService := services.NewTransactionService(db)
 	uploadService := services.NewUploadService(db)
+	categoryService := services.NewCategoryService(db)
+	areaService := services.NewAreaService(db)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userService)
 	workspaceHandler := handlers.NewWorkspaceHandler(workspaceService)
 	transactionHandler := handlers.NewTransactionHandler(transactionService)
 	uploadHandler := handlers.NewUploadHandler(uploadService)
+	categoryHandler := handlers.NewCategoryHandler(categoryService)
+	areaHandler := handlers.NewAreaHandler(areaService, categoryService)
 
 	// API v1
 	v1 := router.Group("/api/v1")
@@ -70,7 +74,25 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 					workspace.GET("/transactions/:txn_id", transactionHandler.Get)
 					workspace.PUT("/transactions/:txn_id", transactionHandler.Update)
 					workspace.DELETE("/transactions/:txn_id", transactionHandler.Delete)
-					workspace.GET("/categories", transactionHandler.GetCategories)
+
+					// Owners
+					workspace.GET("/owners", transactionHandler.GetOwners)
+
+					// Categories CRUD
+					workspace.GET("/categories", categoryHandler.List)
+					workspace.POST("/categories", categoryHandler.Create)
+					workspace.GET("/categories/:cat_id", categoryHandler.Get)
+					workspace.PUT("/categories/:cat_id", categoryHandler.Update)
+					workspace.DELETE("/categories/:cat_id", categoryHandler.Delete)
+
+					// Areas CRUD
+					workspace.GET("/areas", areaHandler.List)
+					workspace.POST("/areas", areaHandler.Create)
+					workspace.GET("/areas/summary", areaHandler.GetSummary)
+					workspace.GET("/areas/:area_id", areaHandler.Get)
+					workspace.PUT("/areas/:area_id", areaHandler.Update)
+					workspace.DELETE("/areas/:area_id", areaHandler.Delete)
+					workspace.GET("/areas/:area_id/categories", areaHandler.GetCategories)
 				}
 			}
 		}

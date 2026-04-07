@@ -128,7 +128,7 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-surface-container-lowest rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="p-6 border-b flex justify-between items-center">
           <h2 className="text-xl font-headline font-bold">
@@ -137,7 +137,7 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
             {step === 'processing' && 'Processing PDF...'}
             {step === 'preview' && 'Review Transactions'}
           </h2>
-          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={handleClose} className="text-on-surface-variant hover:text-on-surface-variant">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -158,10 +158,10 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
                 accept=".pdf"
                 className="hidden"
               />
-              <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">
+              <span className="material-symbols-outlined text-6xl text-on-surface-variant opacity-30 mb-4">
                 upload_file
               </span>
-              <p className="text-gray-500 mb-6">Select a PDF bank statement to upload</p>
+              <p className="text-on-surface-variant mb-6">Select a PDF bank statement to upload</p>
               <button
                 onClick={handleTriggerFileInput}
                 className="bg-primary-container text-white font-bold py-3 px-8 rounded-xl hover:opacity-90"
@@ -175,10 +175,10 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
           {(step === 'uploading' || step === 'processing') && (
             <div className="flex flex-col items-center justify-center py-16">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-container mb-6"></div>
-              <p className="text-gray-500">
+              <p className="text-on-surface-variant">
                 {step === 'uploading' ? 'Uploading file...' : 'Processing and categorizing transactions...'}
               </p>
-              <p className="text-gray-400 text-sm mt-2">This may take a moment</p>
+              <p className="text-on-surface-variant text-sm mt-2">This may take a moment</p>
             </div>
           )}
 
@@ -188,17 +188,17 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
               {/* Summary Bar */}
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="bg-surface-container-lowest p-4 rounded-xl">
-                  <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">Selected</p>
+                  <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Selected</p>
                   <p className="text-xl font-bold">{selectedIds.size} / {transactions.length}</p>
                 </div>
                 <div className="bg-surface-container-lowest p-4 rounded-xl">
-                  <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">Debits</p>
+                  <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Debits</p>
                   <p className="text-xl font-bold text-error">
                     ${Math.abs(selectedDebit).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div className="bg-surface-container-lowest p-4 rounded-xl">
-                  <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">Credits</p>
+                  <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Credits</p>
                   <p className="text-xl font-bold text-primary">
                     +${selectedCredit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </p>
@@ -218,19 +218,19 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
                           className="rounded"
                         />
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                         Date
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                         Description
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                         Amount
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                         Type
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                         Category
                       </th>
                     </tr>
@@ -256,7 +256,7 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
                             type="date"
                             value={t.date}
                             onChange={(e) => updateTransaction(t.temp_id, 'date', e.target.value)}
-                            className="w-full px-2 py-1 rounded bg-white border border-gray-200 text-sm"
+                            className="w-full px-2 py-1 rounded bg-surface-container-lowest border border-surface-container text-sm"
                           />
                         </td>
                         <td className="px-4 py-3">
@@ -264,7 +264,7 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
                             type="text"
                             value={t.description}
                             onChange={(e) => updateTransaction(t.temp_id, 'description', e.target.value)}
-                            className="w-full px-2 py-1 rounded bg-white border border-gray-200 text-sm"
+                            className="w-full px-2 py-1 rounded bg-surface-container-lowest border border-surface-container text-sm"
                           />
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -273,7 +273,7 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
                             step="0.01"
                             value={t.amount}
                             onChange={(e) => updateTransaction(t.temp_id, 'amount', parseFloat(e.target.value) || 0)}
-                            className={`w-24 px-2 py-1 rounded bg-white border border-gray-200 text-sm text-right ${
+                            className={`w-24 px-2 py-1 rounded bg-surface-container-lowest border border-surface-container text-sm text-right ${
                               t.type === 'credit' ? 'text-primary' : 'text-error'
                             }`}
                           />
@@ -282,7 +282,7 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
                           <select
                             value={t.type}
                             onChange={(e) => updateTransaction(t.temp_id, 'type', e.target.value)}
-                            className="px-2 py-1 rounded bg-white border border-gray-200 text-sm"
+                            className="px-2 py-1 rounded bg-surface-container-lowest border border-surface-container text-sm"
                           >
                             <option value="debit">Debit</option>
                             <option value="credit">Credit</option>
@@ -292,7 +292,7 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
                           <select
                             value={t.category}
                             onChange={(e) => updateTransaction(t.temp_id, 'category', e.target.value)}
-                            className="px-2 py-1 rounded bg-white border border-gray-200 text-sm min-w-[140px]"
+                            className="px-2 py-1 rounded bg-surface-container-lowest border border-surface-container text-sm min-w-[140px]"
                           >
                             <option value="">Uncategorized</option>
                             {preview.allowed_categories.map((cat) => (
@@ -314,13 +314,13 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
         {/* Footer */}
         {step === 'preview' && (
           <div className="p-6 border-t flex justify-between items-center">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-on-surface-variant">
               {selectedIds.size} transaction{selectedIds.size !== 1 ? 's' : ''} selected
             </p>
             <div className="flex gap-4">
               <button
                 onClick={handleClose}
-                className="py-3 px-6 rounded-xl border border-gray-200 font-medium hover:bg-gray-50"
+                className="py-3 px-6 rounded-xl border border-surface-container font-medium hover:bg-surface-container-low"
               >
                 Cancel
               </button>

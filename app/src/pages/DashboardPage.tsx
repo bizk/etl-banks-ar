@@ -1,11 +1,17 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, addMonths, eachWeekOfInterval, endOfMonth, isSameMonth, parseISO, startOfMonth, subMonths } from 'date-fns';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { transactionsApi } from '../api/transactions';
+import { areasApi } from '../api/areas';
 import { useWorkspaceStore } from '../store/workspaceSlice';
 import { getCategoryMeta } from '../components/transactions/categoryMeta';
 import { getNumber, getString } from '../types';
+
+const DEFAULT_COLORS = [
+  '#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444',
+  '#ec4899', '#6366f1', '#14b8a6', '#84cc16', '#f97316',
+];
 
 export function DashboardPage() {
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
@@ -33,38 +39,47 @@ export function DashboardPage() {
     enabled: !!currentWorkspace?.id,
   });
 
+  const { data: areaSummaryData, isLoading: isAreaSummaryLoading } = useQuery({
+    queryKey: ['areaSummary', currentWorkspace?.id, month],
+    queryFn: () => areasApi.getSummary(currentWorkspace!.id, month),
+    enabled: !!currentWorkspace?.id,
+  });
+
+  const [expandedAreas, setExpandedAreas] = useState<Set<number | null>>(new Set());
+
+  const toggleAreaExpanded = (areaId: number | null) => {
+    setExpandedAreas((prev) => {
+      const next = new Set(prev);
+      if (next.has(areaId)) {
+        next.delete(areaId);
+      } else {
+        next.add(areaId);
+      }
+      return next;
+    });
+  };
+
   const handlePrevMonth = () => setSelectedMonth(subMonths(currentDate, 1));
   const handleNextMonth = () => setSelectedMonth(addMonths(currentDate, 1));
 
   const summary = summaryData?.summary;
   const transactions = transactionData?.transactions || [];
+  const areas = areaSummaryData?.areas || [];
 
-  const categoryData = useMemo(() => {
-    // Filter to debits only and aggregate by category
-    const debitTransactions = transactions.filter((t) => getString(t.type) === 'debit');
-    const categoryTotals = debitTransactions.reduce((acc, t) => {
-      const category = getString(t.category) || 'Uncategorized';
-      const amount = getNumber(t.amount);
-      acc[category] = (acc[category] || 0) + amount;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const totalSpending = Object.values(categoryTotals).reduce((sum, val) => sum + val, 0);
-
-    return Object.entries(categoryTotals)
-      .map(([name, value]) => {
-        const meta = getCategoryMeta(name);
-        return {
-          name,
-          value,
-          fill: meta.chartColor,
-          icon: meta.icon,
-          badgeClassName: meta.badgeClassName,
-          percentage: totalSpending > 0 ? (value / totalSpending) * 100 : 0,
-        };
-      })
+  // Prepare pie chart data from areas
+  const pieChartData = useMemo(() => {
+    return areas
+      .filter((a) => a.amount > 0)
+      .map((area, index) => ({
+        name: area.area_name || 'Uncategorized',
+        value: area.amount,
+        color: area.area_id === null ? '#9ca3af' : (area.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]),
+        icon: area.area_id === null ? 'help_outline' : (area.icon || 'category'),
+        percentage: area.percentage,
+        areaId: area.area_id,
+      }))
       .sort((a, b) => b.value - a.value);
-  }, [transactions]);
+  }, [areas]);
 
   const weeklyData = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
@@ -123,9 +138,9 @@ export function DashboardPage() {
   if (!currentWorkspace) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
-        <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">workspaces</span>
-        <h2 className="text-xl font-headline font-bold text-gray-600">No Workspace Selected</h2>
-        <p className="text-gray-400 mt-2">Create or select a workspace to get started</p>
+        <span className="material-symbols-outlined text-6xl text-on-surface-variant opacity-30 mb-4">workspaces</span>
+        <h2 className="text-xl font-headline font-bold text-on-surface-variant">No Workspace Selected</h2>
+        <p className="text-on-surface-variant opacity-60 mt-2">Create or select a workspace to get started</p>
       </div>
     );
   }
@@ -158,7 +173,7 @@ export function DashboardPage() {
         </div>
       </header>
 
-      {isLoading || isTransactionsLoading ? (
+      {isLoading || isTransactionsLoading || isAreaSummaryLoading ? (
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-container"></div>
         </div>
@@ -170,7 +185,7 @@ export function DashboardPage() {
                 <span className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant opacity-50">
                   Total Monthly Spending
                 </span>
-                <span className="text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg text-xs font-bold">
+                <span className="text-primary bg-primary/10 px-2 py-1 rounded-lg text-xs font-bold">
                   <span className="material-symbols-outlined text-sm align-middle">trending_down</span>
                 </span>
               </div>
@@ -221,14 +236,25 @@ export function DashboardPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
             <section className="bg-surface-container-lowest p-8 rounded-xl">
-              <h3 className="text-xl font-headline font-bold mb-8">Spending by Category</h3>
-              {categoryData.length > 0 ? (
+              <h3 className="text-xl font-headline font-bold mb-8">Spending by Area</h3>
+              {pieChartData.length > 0 ? (
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={categoryData} cx="50%" cy="50%" outerRadius="72%">
-                      <PolarGrid stroke="#d9f99d" />
-                      <PolarAngleAxis dataKey="name" tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }} />
-                      <PolarRadiusAxis tick={false} axisLine={false} tickLine={false} />
+                    <PieChart>
+                      <Pie
+                        data={pieChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                        nameKey="name"
+                      >
+                        {pieChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
                       <Tooltip
                         contentStyle={{
                           border: 'none',
@@ -239,31 +265,26 @@ export function DashboardPage() {
                         labelStyle={{ color: '#0f172a', fontWeight: 700 }}
                         formatter={(value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                       />
-                      <Radar
-                        name="Spending"
-                        dataKey="value"
-                        stroke="#10b981"
-                        fill="#10b981"
-                        fillOpacity={0.2}
-                        strokeWidth={2.5}
-                      />
-                    </RadarChart>
+                    </PieChart>
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="h-64 flex items-center justify-center text-gray-400">No category data available</div>
+                <div className="h-64 flex items-center justify-center text-on-surface-variant opacity-60">No area data available</div>
               )}
 
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {categoryData.map((cat) => (
-                  <div key={cat.name} className="flex items-center justify-between gap-3 text-sm">
+                {pieChartData.map((area) => (
+                  <div key={area.name} className="flex items-center justify-between gap-3 text-sm">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full ring-1 ring-inset ${cat.badgeClassName}`}>
-                        <span className="material-symbols-outlined text-base">{cat.icon}</span>
+                      <span
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full"
+                        style={{ backgroundColor: area.color }}
+                      >
+                        <span className="material-symbols-outlined text-base text-white">{area.icon}</span>
                       </span>
-                      <span className="truncate font-medium">{cat.name}</span>
+                      <span className="truncate font-medium">{area.name}</span>
                     </div>
-                    <span className="text-on-surface-variant whitespace-nowrap">{cat.percentage.toFixed(1)}%</span>
+                    <span className="text-on-surface-variant whitespace-nowrap">{area.percentage.toFixed(1)}%</span>
                   </div>
                 ))}
               </div>
@@ -311,34 +332,105 @@ export function DashboardPage() {
           </div>
 
           <section className="bg-surface-container-lowest p-8 rounded-xl">
-            <h3 className="text-xl font-headline font-bold mb-8">Category Breakdown</h3>
-            <div className="space-y-5">
-              {categoryData.map((cat) => (
-                <div key={cat.name}>
-                  <div className="flex justify-between gap-4 text-sm mb-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ${cat.badgeClassName}`}>
-                        <span className="material-symbols-outlined text-lg">{cat.icon}</span>
-                      </span>
-                      <span className="font-semibold truncate">{cat.name}</span>
+            <h3 className="text-xl font-headline font-bold mb-8">Spending by Area</h3>
+            <div className="space-y-4">
+              {areas.map((area, areaIndex) => {
+                const areaColor = area.area_id === null ? '#9ca3af' : (area.color || DEFAULT_COLORS[areaIndex % DEFAULT_COLORS.length]);
+                const areaIcon = area.area_id === null ? 'help_outline' : (area.icon || 'category');
+                const isExpanded = expandedAreas.has(area.area_id);
+                const hasCategories = area.categories && area.categories.length > 0;
+
+                return (
+                  <div key={area.area_id ?? 'uncategorized'} className="border border-surface-container rounded-xl overflow-hidden">
+                    {/* Area Header */}
+                    <button
+                      onClick={() => hasCategories && toggleAreaExpanded(area.area_id)}
+                      className={`w-full p-4 flex items-center justify-between gap-4 transition-colors ${
+                        hasCategories ? 'hover:bg-surface-container-low cursor-pointer' : 'cursor-default'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span
+                          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
+                          style={{ backgroundColor: areaColor }}
+                        >
+                          <span className="material-symbols-outlined text-lg">{areaIcon}</span>
+                        </span>
+                        <div className="text-left min-w-0">
+                          <span className="font-semibold truncate block">{area.area_name || 'Uncategorized'}</span>
+                          <span className="text-xs text-on-surface-variant">
+                            {area.count} transaction{area.count !== 1 ? 's' : ''}
+                            {hasCategories && ` · ${area.categories.length} categor${area.categories.length !== 1 ? 'ies' : 'y'}`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="font-bold text-on-surface block">
+                            ${area.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          </span>
+                          <span className="text-xs text-on-surface-variant">{area.percentage.toFixed(1)}%</span>
+                        </div>
+                        {hasCategories && (
+                          <span className="material-symbols-outlined text-on-surface-variant">
+                            {isExpanded ? 'expand_less' : 'expand_more'}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Progress Bar */}
+                    <div className="px-4 pb-4">
+                      <div className="w-full h-2 bg-surface-container-low rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(area.percentage, 100)}%`,
+                            backgroundColor: areaColor,
+                          }}
+                        />
+                      </div>
                     </div>
-                    <span className="text-on-surface-variant font-medium text-right whitespace-nowrap">
-                      ${cat.value.toLocaleString('en-US', { minimumFractionDigits: 2 })} ({cat.percentage.toFixed(1)}%)
-                    </span>
+
+                    {/* Categories (Expandable) */}
+                    {isExpanded && hasCategories && (
+                      <div className="border-t border-surface-container bg-surface-container-low/30">
+                        {area.categories
+                          .sort((a, b) => b.amount - a.amount)
+                          .map((cat) => {
+                            const catMeta = getCategoryMeta(cat.category_name);
+                            const catPercentage = area.amount > 0 ? (cat.amount / area.amount) * 100 : 0;
+
+                            return (
+                              <div
+                                key={cat.category_id || cat.category_name}
+                                className="px-4 py-3 flex items-center justify-between gap-4 border-b border-surface-container last:border-b-0"
+                              >
+                                <div className="flex items-center gap-3 min-w-0 pl-6">
+                                  <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ${catMeta.badgeClassName}`}>
+                                    <span className="material-symbols-outlined text-base">{catMeta.icon}</span>
+                                  </span>
+                                  <div className="min-w-0">
+                                    <span className="font-medium truncate block text-sm">{cat.category_name}</span>
+                                    <span className="text-xs text-on-surface-variant">{cat.count} transaction{cat.count !== 1 ? 's' : ''}</span>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <span className="font-medium text-sm block">
+                                    ${cat.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                  </span>
+                                  <span className="text-xs text-on-surface-variant">{catPercentage.toFixed(1)}% of area</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
                   </div>
-                  <div className="w-full h-2.5 bg-surface-container-low rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.min(cat.percentage, 100)}%`,
-                        backgroundColor: cat.fill,
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-              {categoryData.length === 0 && (
-                <p className="text-gray-400 text-center py-8">No transactions this month</p>
+                );
+              })}
+              {areas.length === 0 && (
+                <p className="text-on-surface-variant opacity-60 text-center py-8">No transactions this month</p>
               )}
             </div>
           </section>

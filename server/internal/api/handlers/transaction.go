@@ -26,6 +26,8 @@ type CreateTransactionRequest struct {
 	Amount      float64 `json:"amount" binding:"required"`
 	Type        string  `json:"type" binding:"required,oneof=debit credit"`
 	Category    string  `json:"category"`
+	Owner       string  `json:"owner"`
+	AreaID      *uint   `json:"area_id"`
 }
 
 type UpdateTransactionRequest struct {
@@ -34,6 +36,8 @@ type UpdateTransactionRequest struct {
 	Amount        *float64 `json:"amount"`
 	Type          *string  `json:"type"`
 	Category      *string  `json:"category"`
+	Owner         *string  `json:"owner"`
+	AreaID        *uint    `json:"area_id"`
 	UserConfirmed *bool    `json:"user_confirmed"`
 }
 
@@ -100,6 +104,8 @@ func (h *TransactionHandler) Create(c *gin.Context) {
 		Amount:      sql.NullFloat64{Float64: req.Amount, Valid: true},
 		Type:        sql.NullString{String: req.Type, Valid: true},
 		Category:    sql.NullString{String: req.Category, Valid: req.Category != ""},
+		Owner:       sql.NullString{String: req.Owner, Valid: req.Owner != ""},
+		AreaID:      req.AreaID,
 	}
 
 	if err := h.transactionService.Create(transaction); err != nil {
@@ -156,6 +162,12 @@ func (h *TransactionHandler) Update(c *gin.Context) {
 	}
 	if req.Category != nil {
 		transaction.Category = sql.NullString{String: *req.Category, Valid: *req.Category != ""}
+	}
+	if req.Owner != nil {
+		transaction.Owner = sql.NullString{String: *req.Owner, Valid: *req.Owner != ""}
+	}
+	if req.AreaID != nil {
+		transaction.AreaID = req.AreaID
 	}
 	if req.UserConfirmed != nil {
 		transaction.UserConfirmed = *req.UserConfirmed
@@ -227,4 +239,16 @@ func (h *TransactionHandler) GetCategories(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"categories": categories})
+}
+
+func (h *TransactionHandler) GetOwners(c *gin.Context) {
+	workspaceID, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+
+	owners, err := h.transactionService.GetOwners(uint(workspaceID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch owners"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"owners": owners})
 }

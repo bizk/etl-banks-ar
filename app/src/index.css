@@ -2,8 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-primary: #006c49;
+  --color-primary-container: #10b981;
+  --color-secondary: #2b6954;
+  --color-secondary-container: #adedd3;
+  --color-tertiary: #a43a3a;
+  --color-background: #f8f9fa;
+  --color-surface: #f8f9fa;
+  --color-surface-container: #edeeef;
+  --color-surface-container-low: #f3f4f5;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e6e7e8;
+  --color-on-surface: #191c1d;
+  --color-on-surface-variant: #3c4a42;
+  --color-error: #ba1a1a;
+}
+
+.dark {
+  --color-primary: #6cdbaf;
+  --color-primary-container: #047857;
+  --color-secondary: #8bd4b8;
+  --color-secondary-container: #1a4d3a;
+  --color-tertiary: #f87171;
+  --color-background: #0f1419;
+  --color-surface: #0f1419;
+  --color-surface-container: #1c2127;
+  --color-surface-container-low: #161b20;
+  --color-surface-container-lowest: #111518;
+  --color-surface-container-high: #262b30;
+  --color-on-surface: #e2e4e5;
+  --color-on-surface-variant: #a9b4ac;
+  --color-error: #ffb4ab;
+}
+
 body {
   font-family: 'Inter', sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-on-surface);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Form elements */
+input, select, textarea {
+  color: var(--color-on-surface);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--color-on-surface-variant);
+  opacity: 0.6;
+}
+
+/* Ensure all elements inherit colors properly */
+* {
+  border-color: var(--color-surface-container);
 }
 
 h1, h2, h3, .font-headline {

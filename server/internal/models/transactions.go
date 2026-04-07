@@ -20,6 +20,9 @@ type Transaction struct {
 	BalanceAfter  sql.NullFloat64 `json:"balance_after"`
 	Type          sql.NullString  `json:"type"` // "debit" | "credit"
 	Category      sql.NullString  `json:"category"`
+	Owner         sql.NullString  `json:"owner"`
+	AreaID        *uint           `json:"area_id"`
+	Area          *Area           `gorm:"foreignKey:AreaID" json:"area,omitempty"`
 	EmbeddingJSON string          `gorm:"column:embedding_json" json:"-"`
 	UserConfirmed bool            `gorm:"column:user_confirmed" json:"user_confirmed"`
 	CreatedAt     time.Time       `json:"created_at"`

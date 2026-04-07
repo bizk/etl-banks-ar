@@ -114,6 +114,28 @@ export interface UploadPreview {
   allowed_categories: string[];
 }
 
+export interface Area {
+  id: number;
+  workspace_id: number;
+  name: string;
+  color: string;
+  icon: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Category {
+  id: number;
+  workspace_id: number;
+  name: string;
+  area_id: number | null;
+  area?: Area;
+  color: string;
+  icon: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Helper to extract string value from nullable string
 export function getString(val: { String: string; Valid: boolean } | string | null | undefined): string {
   if (typeof val === 'string') return val;

@@ -9,6 +9,7 @@ import { workspacesApi } from '../../api/workspaces';
 const navItems = [
   { path: '/', icon: 'dashboard', label: 'Overview' },
   { path: '/transactions', icon: 'receipt_long', label: 'Records' },
+  { path: '/recurring-expenses', icon: 'event_repeat', label: 'Planned Spending' },
   { path: '/insights', icon: 'analytics', label: 'Insights' },
   { path: '/areas', icon: 'category', label: 'Areas' },
   { path: '/workspaces', icon: 'workspaces', label: 'Workspaces' },
@@ -54,8 +55,8 @@ export function Layout() {
             <span className="material-symbols-outlined text-white" style={{ fontVariationSettings: "'FILL' 1" }}>spa</span>
           </div>
           <div>
-            <h2 className="text-lg font-headline font-black text-primary leading-none">Etheric</h2>
-            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant opacity-60 font-bold mt-1">Precision Organicism</p>
+            <h2 className="text-lg font-headline font-black text-primary leading-none">Tostado</h2>
+            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant opacity-60 font-bold mt-1">Gastos</p>
           </div>
         </div>
 

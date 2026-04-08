@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"etl-banks-ar/internal/categorizer"
+	"etl-banks-ar/internal/configs"
 	"etl-banks-ar/internal/models"
 	"etl-banks-ar/internal/ocr"
 	openAiService "etl-banks-ar/internal/openai"
@@ -13,7 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const trainingDataDir = "temp/training_data"
+var trainingDataDir = configs.GetEnvOrDefault("TRAINING_DATA_DIR", "temp/training_data")
 
 type UploadService struct {
 	db *gorm.DB

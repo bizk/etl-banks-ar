@@ -22,6 +22,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	uploadService := services.NewUploadService(db)
 	categoryService := services.NewCategoryService(db)
 	areaService := services.NewAreaService(db)
+	recurringExpenseService := services.NewRecurringExpenseService(db)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userService)
@@ -30,6 +31,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	uploadHandler := handlers.NewUploadHandler(uploadService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	areaHandler := handlers.NewAreaHandler(areaService, categoryService)
+	recurringExpenseHandler := handlers.NewRecurringExpenseHandler(recurringExpenseService)
 
 	// API v1
 	v1 := router.Group("/api/v1")
@@ -93,6 +95,15 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 					workspace.PUT("/areas/:area_id", areaHandler.Update)
 					workspace.DELETE("/areas/:area_id", areaHandler.Delete)
 					workspace.GET("/areas/:area_id/categories", areaHandler.GetCategories)
+
+					// Recurring Expenses CRUD
+					workspace.GET("/recurring-expenses", recurringExpenseHandler.List)
+					workspace.GET("/recurring-expenses/summary", recurringExpenseHandler.GetSummary)
+					workspace.POST("/recurring-expenses", recurringExpenseHandler.Create)
+					workspace.GET("/recurring-expenses/:re_id", recurringExpenseHandler.Get)
+					workspace.PUT("/recurring-expenses/:re_id", recurringExpenseHandler.Update)
+					workspace.DELETE("/recurring-expenses/:re_id", recurringExpenseHandler.Delete)
+					workspace.POST("/recurring-expenses/:re_id/mark-paid", recurringExpenseHandler.MarkPaid)
 				}
 			}
 		}

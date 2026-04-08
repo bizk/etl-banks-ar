@@ -136,6 +136,31 @@ export interface Category {
   updated_at: string;
 }
 
+export interface RecurringExpense {
+  id: number;
+  workspace_id: number;
+  name: string;
+  amount: number;
+  category_id: number | null;
+  category_name?: string;
+  area_id?: number | null;
+  area_name?: string;
+  owner: string;
+  due_day: number;
+  last_paid_date: string | null;
+  is_paid_this_month: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecurringExpenseSummary {
+  total_monthly: number;
+  paid_amount: number;
+  pending_amount: number;
+  previous_month_total: number;
+  change_percentage: number;
+}
+
 // Helper to extract string value from nullable string
 export function getString(val: { String: string; Valid: boolean } | string | null | undefined): string {
   if (typeof val === 'string') return val;

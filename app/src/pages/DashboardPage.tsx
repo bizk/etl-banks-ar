@@ -183,7 +183,7 @@ export function DashboardPage() {
             <div className="bg-surface-container-lowest p-8 rounded-xl flex flex-col justify-between min-h-[160px]">
               <div className="flex justify-between items-start">
                 <span className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant opacity-50">
-                  Total Monthly Spending
+                  Gastos Mensuales
                 </span>
                 <span className="text-primary bg-primary/10 px-2 py-1 rounded-lg text-xs font-bold">
                   <span className="material-symbols-outlined text-sm align-middle">trending_down</span>
@@ -200,7 +200,7 @@ export function DashboardPage() {
             <div className="bg-surface-container-lowest p-8 rounded-xl flex flex-col justify-between min-h-[160px]">
               <div className="flex justify-between items-start">
                 <span className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant opacity-50">
-                  Total Income
+                  Ingresos
                 </span>
                 <div className="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center">
                   <span className="material-symbols-outlined text-sm">trending_up</span>

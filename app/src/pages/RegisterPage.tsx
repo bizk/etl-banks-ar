@@ -49,8 +49,8 @@ export function RegisterPage() {
             <span className="material-symbols-outlined text-white" style={{ fontVariationSettings: "'FILL' 1" }}>spa</span>
           </div>
           <div>
-            <h1 className="text-2xl font-headline font-bold text-primary">Etheric</h1>
-            <p className="text-xs uppercase tracking-widest text-on-surface-variant">Precision Organicism</p>
+            <h1 className="text-2xl font-headline font-bold text-primary">Tostado</h1>
+            <p className="text-xs uppercase tracking-widest text-on-surface-variant">Gastos</p>
           </div>
         </div>
 

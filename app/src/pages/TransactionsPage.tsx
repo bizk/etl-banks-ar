@@ -1,26 +1,20 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addMonths, subMonths } from 'date-fns';
 import { transactionsApi } from '../api/transactions';
 import { categoriesApi } from '../api/categories';
+import { areasApi } from '../api/areas';
 import { useWorkspaceStore } from '../store/workspaceSlice';
 import { getString, getNumber, Transaction, Category } from '../types';
 import { UploadPreviewModal } from '../components/transactions/UploadPreviewModal';
 import {
+  TransactionFormModal,
+  type TransactionFormData,
+} from '../components/transactions/TransactionFormModal';
+import {
   getCategoryMeta,
-  isPredefinedCategory,
   normalizeCategory,
-  PREDEFINED_CATEGORIES,
 } from '../components/transactions/categoryMeta';
-
-interface TransactionFormData {
-  date: string;
-  description: string;
-  amount: string;
-  type: 'debit' | 'credit';
-  category: string;
-  owner: string;
-}
 
 export function TransactionsPage() {
   const selectedMonth = useWorkspaceStore((state) => state.selectedMonth);
@@ -32,7 +26,6 @@ export function TransactionsPage() {
   const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [showCategoryFilterMenu, setShowCategoryFilterMenu] = useState(false);
   const [categoryFilterSearch, setCategoryFilterSearch] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -68,6 +61,12 @@ export function TransactionsPage() {
   const { data: categoriesData } = useQuery({
     queryKey: ['categoriesList', currentWorkspace?.id],
     queryFn: () => categoriesApi.list(currentWorkspace!.id),
+    enabled: !!currentWorkspace?.id,
+  });
+
+  const { data: areasData } = useQuery({
+    queryKey: ['areas', currentWorkspace?.id],
+    queryFn: () => areasApi.list(currentWorkspace!.id),
     enabled: !!currentWorkspace?.id,
   });
 
@@ -113,12 +112,6 @@ export function TransactionsPage() {
         category: data.category,
         owner: data.owner || undefined,
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      queryClient.invalidateQueries({ queryKey: ['summary'] });
-      closeModal();
-    },
   });
 
   const updateMutation = useMutation({
@@ -131,12 +124,44 @@ export function TransactionsPage() {
         category: data.category,
         owner: data.owner || undefined,
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['summary'] });
-      closeModal();
-    },
   });
+
+  const invalidateTransactionRelated = () => {
+    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['categoriesList'] });
+    queryClient.invalidateQueries({ queryKey: ['categories'] });
+    queryClient.invalidateQueries({ queryKey: ['areas'] });
+    queryClient.invalidateQueries({ queryKey: ['summary'] });
+  };
+
+  const handleSubmitCreate = async (
+    data: TransactionFormData,
+    { createAnother }: { createAnother: boolean }
+  ): Promise<void> => {
+    await createMutation.mutateAsync(data);
+    invalidateTransactionRelated();
+
+    // Keep tipo, fecha y titular cuando se cargan varias similares seguidas
+    if (createAnother) {
+      setFormData({
+        date: data.date,
+        owner: data.owner,
+        type: data.type,
+        description: '',
+        amount: '',
+        category: '',
+      });
+    } else {
+      closeModal();
+    }
+  };
+
+  const handleSubmitUpdate = async (id: number, data: TransactionFormData): Promise<void> => {
+    await updateMutation.mutateAsync({ id, data });
+    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['summary'] });
+    closeModal();
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => transactionsApi.delete(currentWorkspace!.id, id),
@@ -166,7 +191,6 @@ export function TransactionsPage() {
       category: '',
       owner: '',
     });
-    setShowCategorySuggestions(false);
     setShowModal(true);
   };
 
@@ -180,23 +204,12 @@ export function TransactionsPage() {
       category: getString(transaction.category),
       owner: getString(transaction.owner),
     });
-    setShowCategorySuggestions(false);
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setEditingId(null);
-    setShowCategorySuggestions(false);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingId) {
-      updateMutation.mutate({ id: editingId, data: formData });
-    } else {
-      createMutation.mutate(formData);
-    }
   };
 
   const handleDelete = (id: number) => {
@@ -233,47 +246,8 @@ export function TransactionsPage() {
   const pagination = data?.pagination;
   const summary = data?.summary;
   const categories = categoriesData?.categories || [];
+  const areas = areasData?.areas || [];
   const categoryNames = categories.map((c) => c.name);
-  const selectedCategoryIsPreset = isPredefinedCategory(formData.category) || categoryMap.has(normalizeCategory(formData.category));
-  const normalizedCategoryInput = normalizeCategory(formData.category);
-
-  // Build category options: DB categories first, then predefined ones not in DB
-  const dbCategorySet = new Set(categoryNames.map((c) => normalizeCategory(c)));
-  const predefinedNotInDb = PREDEFINED_CATEGORIES.filter(
-    (c) => c && c.trim() && !dbCategorySet.has(normalizeCategory(c))
-  );
-  const categoryOptions = [
-    ...categoryNames.filter((c) => c && c.trim()),
-    ...predefinedNotInDb,
-  ];
-
-  const filteredCategoryOptions = categoryOptions
-    .filter((category) => {
-      if (!normalizedCategoryInput) {
-        return true;
-      }
-      return normalizeCategory(category).includes(normalizedCategoryInput);
-    })
-    .sort((a, b) => {
-      // Sort: exact match first, then starts-with, then contains
-      const aNorm = normalizeCategory(a);
-      const bNorm = normalizeCategory(b);
-      const aExact = aNorm === normalizedCategoryInput;
-      const bExact = bNorm === normalizedCategoryInput;
-      if (aExact && !bExact) return -1;
-      if (!aExact && bExact) return 1;
-      const aStarts = aNorm.startsWith(normalizedCategoryInput);
-      const bStarts = bNorm.startsWith(normalizedCategoryInput);
-      if (aStarts && !bStarts) return -1;
-      if (!aStarts && bStarts) return 1;
-      // DB categories before predefined
-      const aInDb = dbCategorySet.has(aNorm);
-      const bInDb = dbCategorySet.has(bNorm);
-      if (aInDb && !bInDb) return -1;
-      if (!aInDb && bInDb) return 1;
-      return a.localeCompare(b);
-    })
-    .slice(0, 8);
   const filterCategoryOptions = Array.from(
     new Map(
       categoryNames
@@ -295,6 +269,8 @@ export function TransactionsPage() {
     );
     setPage(1);
   };
+
+  const isFormSubmitting = createMutation.isPending || updateMutation.isPending;
 
   return (
     <div>
@@ -672,219 +648,20 @@ export function TransactionsPage() {
         </div>
       )}
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface-container-lowest rounded-2xl p-8 w-full max-w-md">
-            <h2 className="text-xl font-headline font-bold mb-6">
-              {editingId ? 'Edit Transaction' : 'New Transaction'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-on-surface-variant mb-1">Date</label>
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg bg-surface-container-low border-none"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-on-surface-variant mb-1">Description</label>
-                <input
-                  type="text"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg bg-surface-container-low border-none"
-                  placeholder="What was this for?"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-on-surface-variant mb-1">Amount</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg bg-surface-container-low border-none"
-                  placeholder="0.00"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-on-surface-variant mb-1">Type</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    {
-                      value: 'debit',
-                      label: 'Debit',
-                      description: 'Expense',
-                      icon: 'south_west',
-                      activeClassName: 'bg-rose-50 text-rose-700 ring-rose-200 border-rose-200',
-                    },
-                    {
-                      value: 'credit',
-                      label: 'Credit',
-                      description: 'Income',
-                      icon: 'north_east',
-                      activeClassName: 'bg-emerald-50 text-emerald-700 ring-emerald-200 border-emerald-200',
-                    },
-                  ].map((option) => {
-                    const isActive = formData.type === option.value;
-
-                    return (
-                      <label
-                        key={option.value}
-                        className={`relative flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 ring-1 ring-inset transition-colors ${
-                          isActive
-                            ? option.activeClassName
-                            : 'border-surface-container bg-surface-container-low text-on-surface-variant ring-transparent hover:bg-surface-container'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="type"
-                          value={option.value}
-                          checked={isActive}
-                          onChange={(e) => setFormData({ ...formData, type: e.target.value as 'debit' | 'credit' })}
-                          className="sr-only"
-                        />
-                        <span className="material-symbols-outlined">{option.icon}</span>
-                        <span className="flex flex-col">
-                          <span className="font-semibold">{option.label}</span>
-                          <span className="text-xs opacity-70">{option.description}</span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-on-surface-variant mb-1">Category</label>
-                <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                    <span className="material-symbols-outlined text-on-surface-variant">
-                      {getCategoryDisplay(formData.category).icon}
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => {
-                      setFormData({ ...formData, category: e.target.value });
-                      setShowCategorySuggestions(true);
-                    }}
-                    onFocus={() => setShowCategorySuggestions(true)}
-                    onBlur={() => {
-                      setTimeout(() => setShowCategorySuggestions(false), 120);
-                    }}
-                    className="w-full rounded-lg border-none bg-surface-container-low py-3 pl-14 pr-12"
-                    placeholder="Search or create a category"
-                    autoComplete="off"
-                  />
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setShowCategorySuggestions((current) => !current)}
-                    className="absolute inset-y-0 right-0 flex items-center px-4 text-on-surface-variant"
-                    aria-label="Toggle category options"
-                  >
-                    <span className="material-symbols-outlined">
-                      {showCategorySuggestions ? 'expand_less' : 'expand_more'}
-                    </span>
-                  </button>
-                  {showCategorySuggestions && (
-                    <div className="absolute z-10 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-surface-container bg-surface-container-lowest p-2 shadow-xl">
-                      {filteredCategoryOptions.length > 0 ? (
-                        filteredCategoryOptions.map((category) => {
-                          const display = getCategoryDisplay(category);
-                          const isSelected = normalizeCategory(category) === normalizedCategoryInput;
-                          const isFromDb = categoryMap.has(normalizeCategory(category));
-
-                          return (
-                            <button
-                              key={normalizeCategory(category)}
-                              type="button"
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => {
-                                setFormData({ ...formData, category });
-                                setShowCategorySuggestions(false);
-                              }}
-                              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${
-                                isSelected ? 'bg-surface-container-low' : 'hover:bg-surface-container-low'
-                              }`}
-                            >
-                              <span
-                                className={`inline-flex h-9 w-9 items-center justify-center rounded-full ring-1 ring-inset ${display.useCustomColor ? 'text-white ring-white/20' : display.badgeClassName}`}
-                                style={display.useCustomColor ? { backgroundColor: display.color! } : undefined}
-                              >
-                                <span className="material-symbols-outlined text-lg">{display.icon}</span>
-                              </span>
-                              <span className="flex flex-col">
-                                <span className="text-sm font-medium">{category}</span>
-                                {(isPredefinedCategory(category) || isFromDb) && (
-                                  <span className="text-xs text-on-surface-variant">
-                                    {isFromDb ? 'Existing category' : 'Suggested category'}
-                                  </span>
-                                )}
-                              </span>
-                            </button>
-                          );
-                        })
-                      ) : (
-                        <div className="px-3 py-3 text-sm text-on-surface-variant">
-                          No matching category. Press save to create "{formData.category}".
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <p className="mt-2 text-xs text-on-surface-variant">
-                  {selectedCategoryIsPreset
-                    ? 'Existing category selected. You can keep typing to switch or create a new one.'
-                    : 'Type to filter existing categories or leave your custom value to create a new category.'}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-on-surface-variant mb-1">Owner</label>
-                <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                    <span className="material-symbols-outlined text-on-surface-variant">person</span>
-                  </div>
-                  <input
-                    type="text"
-                    value={formData.owner}
-                    onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                    className="w-full rounded-lg border-none bg-surface-container-low py-3 pl-14 pr-4"
-                    placeholder="Who made this expense?"
-                  />
-                </div>
-                <p className="mt-2 text-xs text-on-surface-variant">
-                  Enter the name of the person responsible for this transaction.
-                </p>
-              </div>
-              <div className="flex gap-4 pt-4">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 py-3 rounded-xl border border-surface-container font-medium hover:bg-surface-container-low"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending || updateMutation.isPending}
-                  className="flex-1 py-3 rounded-xl bg-primary-container text-white font-bold hover:opacity-90 disabled:opacity-50"
-                >
-                  {editingId ? 'Save Changes' : 'Create'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <TransactionFormModal
+        isOpen={showModal}
+        editingId={editingId}
+        formData={formData}
+        setFormData={setFormData}
+        categories={categories}
+        areas={areas}
+        categoryMap={categoryMap}
+        getCategoryDisplay={getCategoryDisplay}
+        isSubmitting={isFormSubmitting}
+        onClose={closeModal}
+        onSubmitCreate={handleSubmitCreate}
+        onSubmitUpdate={handleSubmitUpdate}
+      />
 
       {/* Upload Modal */}
       <UploadPreviewModal

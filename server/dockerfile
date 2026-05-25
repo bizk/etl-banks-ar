@@ -2,7 +2,8 @@ FROM golang:1.25 AS builder
 
 WORKDIR /app
 COPY . .
-RUN go build -o etl ./cmd/main.go
+# Production API (Gin + workspace routes). Do not use legacy cmd/main.go here.
+RUN go build -o etl ./cmd/api
 
 FROM gcr.io/distroless/base
 COPY --from=builder /app/etl /main

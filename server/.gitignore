@@ -2,7 +2,6 @@
 .env.*
 !.env.example
 
-api
 main
 *.exe
 *.out

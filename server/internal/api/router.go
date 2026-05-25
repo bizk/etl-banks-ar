@@ -19,16 +19,15 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	userService := services.NewUserService(db)
 	workspaceService := services.NewWorkspaceService(db)
 	transactionService := services.NewTransactionService(db)
-	uploadService := services.NewUploadService(db)
 	categoryService := services.NewCategoryService(db)
 	areaService := services.NewAreaService(db)
 	recurringExpenseService := services.NewRecurringExpenseService(db)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userService)
-	workspaceHandler := handlers.NewWorkspaceHandler(workspaceService)
+	workspaceHandler := handlers.NewWorkspaceHandler(workspaceService, categoryService)
 	transactionHandler := handlers.NewTransactionHandler(transactionService)
-	uploadHandler := handlers.NewUploadHandler(uploadService)
+	uploadHandler := handlers.NewUploadHandler(services.NewUploadService(db, categoryService))
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	areaHandler := handlers.NewAreaHandler(areaService, categoryService)
 	recurringExpenseHandler := handlers.NewRecurringExpenseHandler(recurringExpenseService)

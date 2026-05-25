@@ -49,8 +49,14 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 	}
 	defer os.Remove(tempPath) // Clean up after processing
 
-	// Process the file
-	preview, err := h.uploadService.ProcessUpload(tempPath)
+	// Parse workspace id (route validated by WorkspaceAccessMiddleware)
+	workspaceID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid workspace ID"})
+		return
+	}
+
+	preview, err := h.uploadService.ProcessUpload(uint(workspaceID), tempPath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -69,7 +69,7 @@ CRITICAL REQUIREMENTS:
    - "amount": negative for debits, positive for credits, use dot as decimal separator
    - "balance_after": numeric value if available, otherwise 0.0
    - "type": exactly "debit" or "credit" (lowercase)
-   - "description": full transaction description as it appears
+   - "description": concrete payee/merchant/concept text; omit leading Spanish boilerplate phrases "egreso de dinero" / "ingreso de dinero" (any casing) plus stray separators (- : |) that only separate that boilerplate — keep whatever identifies the merchant
 4. Extract ALL transactions from the statement - do not stop early
 5. Ensure the final JSON is valid and parseable - verify all brackets and braces are closed
 
@@ -110,7 +110,7 @@ func ParseTransactions(transactions TransactionList) (*[]models.Transaction, err
 
 		parsed = append(parsed, models.Transaction{
 			Date:         date,
-			Description:  sql.NullString{String: transaction.Description, Valid: true},
+			Description:  descriptionField(transaction.Description),
 			Amount:       sql.NullFloat64{Float64: amount, Valid: true},
 			BalanceAfter: sql.NullFloat64{Float64: balanceAfter, Valid: true},
 			Type:         sql.NullString{String: transaction.Type, Valid: true},
@@ -118,6 +118,19 @@ func ParseTransactions(transactions TransactionList) (*[]models.Transaction, err
 	}
 
 	return &parsed, nil
+}
+
+func descriptionField(raw string) sql.NullString {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return sql.NullString{}
+	}
+	clean := SanitizeMovementDescription(s)
+	clean = strings.TrimSpace(clean)
+	if clean == "" {
+		return sql.NullString{String: s, Valid: true}
+	}
+	return sql.NullString{String: clean, Valid: true}
 }
 
 // cleanJSONResponse removes markdown code blocks and trims whitespace

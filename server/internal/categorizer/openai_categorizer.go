@@ -10,6 +10,12 @@ import (
 	"strings"
 )
 
+type workspacePayload struct {
+	AllowedCategories []string                    `json:"allowed_categories"`
+	LabeledExamples   []trainingcsv.Example       `json:"labeled_examples"`
+	Transactions      []categorizationTransaction `json:"transactions"`
+}
+
 type requestPayload struct {
 	AllowedCategories []string                    `json:"allowed_categories"`
 	TrainingExamples  []trainingcsv.Example       `json:"training_examples"`
@@ -104,6 +110,90 @@ DATA:
 	for i := range mapped {
 		if mapped[i] == "" {
 			mapped[i] = allowedCategories[0]
+		}
+	}
+
+	return mapped, nil
+}
+
+func pickFallbackCategory(allowedCategories []string) string {
+	if contains(allowedCategories, models.MissingCategoryName) {
+		return models.MissingCategoryName
+	}
+	if len(allowedCategories) > 0 {
+		return allowedCategories[0]
+	}
+	return models.MissingCategoryName
+}
+
+// CategorizeWithWorkspaceExamples classifies transactions using categorized rows from the same workspace ("labeled_examples")
+// plus the workspace category taxonomy ("allowed_categories").
+func CategorizeWithWorkspaceExamples(client *openAiService.OpenAIClient, transactions []models.Transaction, labeledExamples []trainingcsv.Example, allowedCategories []string) ([]string, error) {
+	if len(transactions) == 0 {
+		return nil, nil
+	}
+	if len(allowedCategories) == 0 {
+		return nil, fmt.Errorf("allowed categories empty")
+	}
+	fallback := pickFallbackCategory(allowedCategories)
+
+	payload := workspacePayload{
+		AllowedCategories: allowedCategories,
+		LabeledExamples:   labeledExamples,
+		Transactions:      make([]categorizationTransaction, 0, len(transactions)),
+	}
+	for i, tx := range transactions {
+		payload.Transactions = append(payload.Transactions, categorizationTransaction{
+			Index:       i,
+			Date:        tx.Date.Format("2006-01-02"),
+			Description: tx.Description.String,
+			Amount:      tx.Amount.Float64,
+			Type:        strings.ToLower(tx.Type.String),
+		})
+	}
+
+	payloadJSON, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	prompt := fmt.Sprintf(`You classify bank transactions into one category for this user's workspace.
+
+Rules:
+1. field "labeled_examples" contains real transactions this workspace already categorized (most recent rows). Prefer the same category when wording, merchants, amounts, or types clearly match patterns you see there.
+2. Use only categories listed in "allowed_categories" (exact string match including spacing and casing).
+3. If unsure, prefer category "%s" when it fits "unknown / miscellaneous / needs review"-style buckets; otherwise pick the closest fit.
+4. Keep indexes unchanged.
+5. Return only valid JSON (no markdown, no extra text) with this format:
+{"results":[{"index":0,"category":"string","reason":"short reason"}]}
+
+DATA:
+%s`, models.MissingCategoryName, string(payloadJSON))
+
+	raw, err := client.PromptText(prompt)
+	if err != nil {
+		return nil, err
+	}
+
+	var parsed categorizationResponse
+	if err = json.Unmarshal([]byte(cleanJSON(raw)), &parsed); err != nil {
+		return nil, fmt.Errorf("failed to parse categorization response: %w", err)
+	}
+
+	mapped := make([]string, len(transactions))
+	for _, res := range parsed.Results {
+		if res.Index < 0 || res.Index >= len(transactions) {
+			continue
+		}
+		if !contains(allowedCategories, res.Category) {
+			continue
+		}
+		mapped[res.Index] = res.Category
+	}
+
+	for i := range mapped {
+		if mapped[i] == "" {
+			mapped[i] = fallback
 		}
 	}
 

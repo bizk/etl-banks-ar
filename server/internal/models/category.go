@@ -2,6 +2,9 @@ package models
 
 import "time"
 
+// MissingCategoryName is the reserved default category for uncategorized or invalid model output.
+const MissingCategoryName = "Missing"
+
 type Category struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	WorkspaceID uint      `gorm:"uniqueIndex:idx_ws_cat_name;not null" json:"workspace_id"`

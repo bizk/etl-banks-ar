@@ -210,12 +210,12 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
                 <table className="w-full">
                   <thead className="bg-surface-container-low">
                     <tr>
-                      <th className="px-4 py-3 text-left">
+                      <th className="px-4 py-4 text-left">
                         <input
                           type="checkbox"
-                          checked={selectedIds.size === transactions.length}
+                          checked={selectedIds.size === transactions.length && transactions.length > 0}
                           onChange={toggleSelectAll}
-                          className="rounded"
+                          className="w-5 h-5 rounded cursor-pointer accent-primary-container"
                         />
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
@@ -243,12 +243,12 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
                           selectedIds.has(t.temp_id) ? '' : 'opacity-40'
                         } hover:bg-surface-container-low/50`}
                       >
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-4 align-middle">
                           <input
                             type="checkbox"
                             checked={selectedIds.has(t.temp_id)}
                             onChange={() => toggleSelection(t.temp_id)}
-                            className="rounded"
+                            className="w-5 h-5 rounded cursor-pointer accent-primary-container"
                           />
                         </td>
                         <td className="px-4 py-3">
@@ -282,7 +282,7 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
                           <select
                             value={t.type}
                             onChange={(e) => updateTransaction(t.temp_id, 'type', e.target.value)}
-                            className="px-2 py-1 rounded bg-surface-container-lowest border border-surface-container text-sm"
+                            className="min-h-[2.75rem] px-3 py-2 rounded bg-surface-container-lowest border border-surface-container text-base"
                           >
                             <option value="debit">Debit</option>
                             <option value="credit">Credit</option>
@@ -292,7 +292,7 @@ export function UploadPreviewModal({ workspaceId, isOpen, onClose }: UploadPrevi
                           <select
                             value={t.category}
                             onChange={(e) => updateTransaction(t.temp_id, 'category', e.target.value)}
-                            className="px-2 py-1 rounded bg-surface-container-lowest border border-surface-container text-sm min-w-[140px]"
+                            className="min-h-[2.75rem] px-3 py-2 rounded bg-surface-container-lowest border border-surface-container text-base min-w-[180px]"
                           >
                             <option value="">Uncategorized</option>
                             {preview.allowed_categories.map((cat) => (

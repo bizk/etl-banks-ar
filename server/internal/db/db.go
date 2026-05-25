@@ -5,6 +5,7 @@ import (
 
 	"etl-banks-ar/internal/configs"
 	"etl-banks-ar/internal/models"
+	"etl-banks-ar/internal/services"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -43,5 +44,10 @@ func Migrate() {
 	)
 	if err != nil {
 		panic(fmt.Sprintf("failed to migrate database: %v", err))
+	}
+
+	categoryService := services.NewCategoryService(db)
+	if err := categoryService.BackfillMissingCategories(); err != nil {
+		panic(fmt.Sprintf("failed to seed Missing categories: %v", err))
 	}
 }

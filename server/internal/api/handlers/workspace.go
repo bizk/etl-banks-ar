@@ -12,10 +12,11 @@ import (
 
 type WorkspaceHandler struct {
 	workspaceService *services.WorkspaceService
+	categoryService  *services.CategoryService
 }
 
-func NewWorkspaceHandler(workspaceService *services.WorkspaceService) *WorkspaceHandler {
-	return &WorkspaceHandler{workspaceService: workspaceService}
+func NewWorkspaceHandler(workspaceService *services.WorkspaceService, categoryService *services.CategoryService) *WorkspaceHandler {
+	return &WorkspaceHandler{workspaceService: workspaceService, categoryService: categoryService}
 }
 
 type CreateWorkspaceRequest struct {
@@ -51,6 +52,11 @@ func (h *WorkspaceHandler) Create(c *gin.Context) {
 	workspace, err := h.workspaceService.Create(req.Name, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create workspace"})
+		return
+	}
+
+	if err := h.categoryService.EnsureMissingCategory(workspace.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initialize workspace categories"})
 		return
 	}
 

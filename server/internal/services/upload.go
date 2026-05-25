@@ -3,25 +3,26 @@ package services
 import (
 	"database/sql"
 	"etl-banks-ar/internal/categorizer"
-	"etl-banks-ar/internal/configs"
 	"etl-banks-ar/internal/models"
 	"etl-banks-ar/internal/ocr"
 	openAiService "etl-banks-ar/internal/openai"
 	"etl-banks-ar/internal/trainingcsv"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
 )
 
-var trainingDataDir = configs.GetEnvOrDefault("TRAINING_DATA_DIR", "temp/training_data")
+const maxWorkspaceLabeledExamples = 120
 
 type UploadService struct {
-	db *gorm.DB
+	db              *gorm.DB
+	categoryService *CategoryService
 }
 
-func NewUploadService(db *gorm.DB) *UploadService {
-	return &UploadService{db: db}
+func NewUploadService(db *gorm.DB, categoryService *CategoryService) *UploadService {
+	return &UploadService{db: db, categoryService: categoryService}
 }
 
 // PreviewTransaction represents a transaction ready for user review
@@ -49,18 +50,25 @@ type UploadPreview struct {
 	AllowedCategories []string             `json:"allowed_categories"`
 }
 
-// ProcessUpload processes a PDF file through OCR and categorization
-func (s *UploadService) ProcessUpload(filePath string) (*UploadPreview, error) {
-	// Step 1: Load training data for categories
-	_, examples, err := trainingcsv.LoadTrainingData(trainingDataDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load training data: %w", err)
+// ProcessUpload processes a PDF file through OCR and workspace-aware categorization.
+func (s *UploadService) ProcessUpload(workspaceID uint, filePath string) (*UploadPreview, error) {
+	if err := s.categoryService.EnsureMissingCategory(workspaceID); err != nil {
+		return nil, fmt.Errorf("ensure default category: %w", err)
 	}
 
-	// Extract allowed categories from training data
-	allowedCategories := extractCategories(examples)
+	categories, err := s.categoryService.List(workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list categories: %w", err)
+	}
 
-	// Step 2: OCR the PDF
+	allowedCategories := make([]string, 0, len(categories))
+	for _, c := range categories {
+		n := strings.TrimSpace(c.Name)
+		if n != "" {
+			allowedCategories = append(allowedCategories, n)
+		}
+	}
+
 	client := openAiService.NewClient()
 	transactions, err := ocr.ReadFileWithClient(client, filePath)
 	if err != nil {
@@ -75,20 +83,23 @@ func (s *UploadService) ProcessUpload(filePath string) (*UploadPreview, error) {
 		}, nil
 	}
 
-	// Step 3: Categorize transactions
-	categories, err := categorizer.CategorizeWithOpenAI(client, *transactions, examples, 20)
+	labeledExamples, err := s.loadLabeledExamplesForUpload(workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load categorized history: %w", err)
+	}
+
+	predictedCategories, err := categorizer.CategorizeWithWorkspaceExamples(client, *transactions, labeledExamples, allowedCategories)
 	if err != nil {
 		return nil, fmt.Errorf("categorization failed: %w", err)
 	}
 
-	// Step 4: Build preview response
 	preview := make([]PreviewTransaction, len(*transactions))
 	var totalDebit, totalCredit float64
 
 	for i, tx := range *transactions {
 		category := ""
-		if i < len(categories) {
-			category = categories[i]
+		if i < len(predictedCategories) {
+			category = predictedCategories[i]
 		}
 
 		amount := tx.Amount.Float64
@@ -118,6 +129,51 @@ func (s *UploadService) ProcessUpload(filePath string) (*UploadPreview, error) {
 		},
 		AllowedCategories: allowedCategories,
 	}, nil
+}
+
+func (s *UploadService) loadLabeledExamplesForUpload(workspaceID uint) ([]trainingcsv.Example, error) {
+	since := time.Now().AddDate(0, -2, 0)
+	var recent []models.Transaction
+	err := s.db.Where("workspace_id = ? AND date >= ?", workspaceID, since).
+		Where("category IS NOT NULL AND category != ?", "").
+		Order("date DESC").
+		Limit(maxWorkspaceLabeledExamples).
+		Find(&recent).Error
+	if err != nil {
+		return nil, err
+	}
+	if len(recent) > 0 {
+		return transactionsToExamples(recent), nil
+	}
+
+	var fallback []models.Transaction
+	err = s.db.Where("workspace_id = ?", workspaceID).
+		Where("category IS NOT NULL AND category != ?", "").
+		Order("date DESC").
+		Limit(30).
+		Find(&fallback).Error
+	if err != nil {
+		return nil, err
+	}
+	return transactionsToExamples(fallback), nil
+}
+
+func transactionsToExamples(rows []models.Transaction) []trainingcsv.Example {
+	out := make([]trainingcsv.Example, 0, len(rows))
+	for _, t := range rows {
+		if !t.Category.Valid || strings.TrimSpace(t.Category.String) == "" {
+			continue
+		}
+		out = append(out, trainingcsv.Example{
+			Date:         t.Date.Format("2006-01-02"),
+			Description:  t.Description.String,
+			Amount:       t.Amount.Float64,
+			BalanceAfter: 0,
+			Type:         strings.ToLower(t.Type.String),
+			Category:     t.Category.String,
+		})
+	}
+	return out
 }
 
 // ConfirmTransactionInput is the input for confirming a transaction
@@ -153,26 +209,10 @@ func (s *UploadService) ConfirmTransactions(workspaceID uint, transactions []Con
 		})
 	}
 
-	// Bulk insert
 	result := s.db.Create(&models_txns)
 	if result.Error != nil {
 		return 0, fmt.Errorf("failed to save transactions: %w", result.Error)
 	}
 
 	return int(result.RowsAffected), nil
-}
-
-// extractCategories returns unique categories from training examples
-func extractCategories(examples []trainingcsv.Example) []string {
-	seen := make(map[string]bool)
-	var categories []string
-
-	for _, ex := range examples {
-		if ex.Category != "" && !seen[ex.Category] {
-			seen[ex.Category] = true
-			categories = append(categories, ex.Category)
-		}
-	}
-
-	return categories
 }

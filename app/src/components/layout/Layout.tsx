@@ -1,10 +1,12 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authSlice';
 import { useWorkspaceStore } from '../../store/workspaceSlice';
 import { useThemeStore } from '../../store/themeSlice';
 import { workspacesApi } from '../../api/workspaces';
+import { CurrencyToggle } from '../CurrencyToggle';
+import { ExchangeRateModal } from '../ExchangeRateModal';
 
 const navItems = [
   { path: '/', icon: 'dashboard', label: 'Overview' },
@@ -21,6 +23,7 @@ export function Layout() {
   const { user, logout } = useAuthStore();
   const { workspaces, currentWorkspace, setWorkspaces, setCurrentWorkspace } = useWorkspaceStore();
   const { theme, toggleTheme } = useThemeStore();
+  const [isExchangeRateModalOpen, setIsExchangeRateModalOpen] = useState(false);
 
   const { data: workspacesData } = useQuery({
     queryKey: ['workspaces'],
@@ -112,6 +115,18 @@ export function Layout() {
             New Transaction
           </Link>
 
+          {/* Currency controls */}
+          <div className="flex items-center justify-between gap-2 px-2">
+            <CurrencyToggle />
+            <button
+              onClick={() => setIsExchangeRateModalOpen(true)}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-surface-container transition-colors text-on-surface-variant text-sm"
+              title="Manage exchange rates"
+            >
+              <span className="material-symbols-outlined text-base">settings</span>
+            </button>
+          </div>
+
           <div className="flex items-center gap-3 px-2">
             <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-white text-sm font-bold">
               {user?.name?.charAt(0).toUpperCase() || 'U'}
@@ -144,6 +159,12 @@ export function Layout() {
       <main className="flex-1 px-8 py-8 overflow-y-auto">
         <Outlet />
       </main>
+
+      {/* Exchange Rate Modal */}
+      <ExchangeRateModal
+        isOpen={isExchangeRateModalOpen}
+        onClose={() => setIsExchangeRateModalOpen(false)}
+      />
     </div>
   );
 }

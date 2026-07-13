@@ -41,6 +41,7 @@ func Migrate() {
 		&models.Category{},
 		&models.Transaction{},
 		&models.RecurringExpense{},
+		&models.ExchangeRate{},
 	)
 	if err != nil {
 		panic(fmt.Sprintf("failed to migrate database: %v", err))

@@ -22,6 +22,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	categoryService := services.NewCategoryService(db)
 	areaService := services.NewAreaService(db)
 	recurringExpenseService := services.NewRecurringExpenseService(db)
+	exchangeRateService := services.NewExchangeRateService(db)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userService)
@@ -31,6 +32,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	areaHandler := handlers.NewAreaHandler(areaService, categoryService)
 	recurringExpenseHandler := handlers.NewRecurringExpenseHandler(recurringExpenseService)
+	exchangeRateHandler := handlers.NewExchangeRateHandler(exchangeRateService)
 
 	// API v1
 	v1 := router.Group("/api/v1")
@@ -90,6 +92,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 					workspace.GET("/areas", areaHandler.List)
 					workspace.POST("/areas", areaHandler.Create)
 					workspace.GET("/areas/summary", areaHandler.GetSummary)
+					workspace.GET("/areas/yearly-summary", areaHandler.GetYearlySummary)
 					workspace.GET("/areas/:area_id", areaHandler.Get)
 					workspace.PUT("/areas/:area_id", areaHandler.Update)
 					workspace.DELETE("/areas/:area_id", areaHandler.Delete)
@@ -103,6 +106,12 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 					workspace.PUT("/recurring-expenses/:re_id", recurringExpenseHandler.Update)
 					workspace.DELETE("/recurring-expenses/:re_id", recurringExpenseHandler.Delete)
 					workspace.POST("/recurring-expenses/:re_id/mark-paid", recurringExpenseHandler.MarkPaid)
+
+					// Exchange Rates
+					workspace.GET("/exchange-rates", exchangeRateHandler.List)
+					workspace.GET("/exchange-rates/:month", exchangeRateHandler.Get)
+					workspace.PUT("/exchange-rates/:month", exchangeRateHandler.Upsert)
+					workspace.DELETE("/exchange-rates/:month", exchangeRateHandler.Delete)
 				}
 			}
 		}

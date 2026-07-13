@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { Area } from '../types';
+import type { Area, YearlyAreaSummary } from '../types';
 
 interface CreateAreaRequest {
   name: string;
@@ -75,6 +75,13 @@ export const areasApi = {
   getSummary: async (workspaceId: number, month: string): Promise<AreaSummaryResponse> => {
     const response = await apiClient.get<AreaSummaryResponse>(
       `/workspaces/${workspaceId}/areas/summary?month=${month}`
+    );
+    return response.data;
+  },
+
+  getYearlySummary: async (workspaceId: number, year: string): Promise<YearlyAreaSummary> => {
+    const response = await apiClient.get<YearlyAreaSummary>(
+      `/workspaces/${workspaceId}/areas/yearly-summary?year=${year}`
     );
     return response.data;
   },

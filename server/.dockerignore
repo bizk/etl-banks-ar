@@ -1,0 +1,26 @@
+# Build artifacts
+tostado
+main
+*.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test files
+*_test.go
+resources/
+
+# Env files (will be passed via docker-compose)
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml

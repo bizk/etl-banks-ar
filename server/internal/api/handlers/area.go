@@ -165,3 +165,21 @@ func (h *AreaHandler) GetCategories(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"categories": categories})
 }
+
+func (h *AreaHandler) GetYearlySummary(c *gin.Context) {
+	workspaceID, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+	year := c.Query("year")
+
+	if year == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "year parameter is required (YYYY)"})
+		return
+	}
+
+	summary, err := h.areaService.GetYearlySummary(uint(workspaceID), year)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch yearly area summary"})
+		return
+	}
+
+	c.JSON(http.StatusOK, summary)
+}

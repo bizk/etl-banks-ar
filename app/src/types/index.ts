@@ -161,6 +161,45 @@ export interface RecurringExpenseSummary {
   change_percentage: number;
 }
 
+// Exchange Rate types
+export interface ExchangeRate {
+  id: number;
+  workspace_id: number;
+  month: string;
+  rate: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Yearly Area Summary types
+export interface MonthlyAreaAmount {
+  month: string;
+  amount: number;
+}
+
+export interface YearlyAreaCategorySummary {
+  category_id: number;
+  category_name: string;
+  amount: number;
+  count: number;
+}
+
+export interface YearlyAreaItem {
+  area_id: number | null;
+  area_name: string;
+  color: string;
+  icon: string;
+  amount: number;
+  monthly: MonthlyAreaAmount[];
+  categories: YearlyAreaCategorySummary[];
+}
+
+export interface YearlyAreaSummary {
+  year: string;
+  total_spent: number;
+  areas: YearlyAreaItem[];
+}
+
 // Helper to extract string value from nullable string
 export function getString(val: { String: string; Valid: boolean } | string | null | undefined): string {
   if (typeof val === 'string') return val;

@@ -7,6 +7,7 @@ import { areasApi } from '../api/areas';
 import { useWorkspaceStore } from '../store/workspaceSlice';
 import { getCategoryMeta } from '../components/transactions/categoryMeta';
 import { getNumber, getString } from '../types';
+import { useCurrency } from '../hooks/useCurrency';
 
 const DEFAULT_COLORS = [
   '#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444',
@@ -19,6 +20,7 @@ export function DashboardPage() {
   const setSelectedMonth = useWorkspaceStore((state) => state.setSelectedMonth);
   const currentDate = new Date(selectedMonth);
   const month = format(currentDate, 'yyyy-MM');
+  const { formatAmount } = useCurrency();
 
   const { data: summaryData, isLoading } = useQuery({
     queryKey: ['summary', currentWorkspace?.id, month],
@@ -45,6 +47,14 @@ export function DashboardPage() {
     enabled: !!currentWorkspace?.id,
   });
 
+  // Fetch previous month data for comparison
+  const previousMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
+  const { data: prevSummaryData } = useQuery({
+    queryKey: ['summary', currentWorkspace?.id, previousMonth],
+    queryFn: () => transactionsApi.getSummary(currentWorkspace!.id, previousMonth),
+    enabled: !!currentWorkspace?.id,
+  });
+
   const [expandedAreas, setExpandedAreas] = useState<Set<number | null>>(new Set());
 
   const toggleAreaExpanded = (areaId: number | null) => {
@@ -65,6 +75,26 @@ export function DashboardPage() {
   const summary = summaryData?.summary;
   const transactions = transactionData?.transactions || [];
   const areas = areaSummaryData?.areas || [];
+
+  // Sort areas by spending amount (highest first)
+  const sortedAreas = useMemo(() => {
+    return [...areas].sort((a, b) => b.amount - a.amount);
+  }, [areas]);
+
+  // Calculate month-over-month comparison
+  const prevSummary = prevSummaryData?.summary;
+  const comparison = useMemo(() => {
+    const spendingChange = prevSummary?.total_spending && prevSummary.total_spending > 0
+      ? ((summary?.total_spending || 0) - prevSummary.total_spending) / prevSummary.total_spending * 100
+      : null;
+    const incomeChange = prevSummary?.total_income && prevSummary.total_income > 0
+      ? ((summary?.total_income || 0) - prevSummary.total_income) / prevSummary.total_income * 100
+      : null;
+    const netChange = prevSummary?.net !== undefined && prevSummary.net !== 0
+      ? ((summary?.net || 0) - prevSummary.net) / Math.abs(prevSummary.net) * 100
+      : null;
+    return { spendingChange, incomeChange, netChange };
+  }, [summary, prevSummary]);
 
   // Prepare pie chart data from areas
   const pieChartData = useMemo(() => {
@@ -191,9 +221,18 @@ export function DashboardPage() {
               </div>
               <div className="mt-4">
                 <p className="text-4xl font-headline font-extrabold">
-                  ${summary?.total_spending?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                  {formatAmount(summary?.total_spending || 0, month)}
                 </p>
-                <p className="text-sm text-on-surface-variant mt-2">Debits this month</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <p className="text-sm text-on-surface-variant">Debits this month</p>
+                  {comparison.spendingChange !== null && (
+                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
+                      comparison.spendingChange <= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                    }`}>
+                      {comparison.spendingChange > 0 ? '+' : ''}{comparison.spendingChange.toFixed(0)}%
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -208,9 +247,18 @@ export function DashboardPage() {
               </div>
               <div className="mt-4">
                 <p className="text-4xl font-headline font-extrabold">
-                  ${summary?.total_income?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                  {formatAmount(summary?.total_income || 0, month)}
                 </p>
-                <p className="text-sm text-on-surface-variant mt-2">Credits this month</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <p className="text-sm text-on-surface-variant">Credits this month</p>
+                  {comparison.incomeChange !== null && (
+                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
+                      comparison.incomeChange >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                    }`}>
+                      {comparison.incomeChange > 0 ? '+' : ''}{comparison.incomeChange.toFixed(0)}%
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -225,7 +273,7 @@ export function DashboardPage() {
               </div>
               <div className="mt-4">
                 <p className="text-4xl font-headline font-extrabold">
-                  ${Math.abs(summary?.net || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {formatAmount(Math.abs(summary?.net || 0), month)}
                 </p>
                 <p className="text-sm opacity-80 mt-2">
                   {(summary?.net || 0) >= 0 ? 'You saved this month' : 'Over budget this month'}
@@ -334,7 +382,7 @@ export function DashboardPage() {
           <section className="bg-surface-container-lowest p-8 rounded-xl">
             <h3 className="text-xl font-headline font-bold mb-8">Spending by Area</h3>
             <div className="space-y-4">
-              {areas.map((area, areaIndex) => {
+              {sortedAreas.map((area, areaIndex) => {
                 const areaColor = area.area_id === null ? '#9ca3af' : (area.color || DEFAULT_COLORS[areaIndex % DEFAULT_COLORS.length]);
                 const areaIcon = area.area_id === null ? 'help_outline' : (area.icon || 'category');
                 const isExpanded = expandedAreas.has(area.area_id);
@@ -367,7 +415,7 @@ export function DashboardPage() {
                       <div className="flex items-center gap-3">
                         <div className="text-right">
                           <span className="font-bold text-on-surface block">
-                            ${area.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            {formatAmount(area.amount, month)}
                           </span>
                           <span className="text-xs text-on-surface-variant">{area.percentage.toFixed(1)}%</span>
                         </div>
@@ -417,7 +465,7 @@ export function DashboardPage() {
                                 </div>
                                 <div className="text-right">
                                   <span className="font-medium text-sm block">
-                                    ${cat.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    {formatAmount(cat.amount, month)}
                                   </span>
                                   <span className="text-xs text-on-surface-variant">{catPercentage.toFixed(1)}% of area</span>
                                 </div>

@@ -216,24 +216,35 @@ export function DashboardPage() {
                 <span className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant opacity-50">
                   Gastos Mensuales
                 </span>
-                <span className="text-primary bg-primary/10 px-2 py-1 rounded-lg text-xs font-bold">
-                  <span className="material-symbols-outlined text-sm align-middle">trending_down</span>
+                <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
+                  comparison.spendingChange !== null && comparison.spendingChange > 0
+                    ? 'text-rose-700 bg-rose-100'
+                    : 'text-emerald-700 bg-emerald-100'
+                }`}>
+                  <span className="material-symbols-outlined text-sm align-middle">
+                    {comparison.spendingChange !== null && comparison.spendingChange > 0 ? 'trending_up' : 'trending_down'}
+                  </span>
                 </span>
               </div>
               <div className="mt-4">
                 <p className="text-4xl font-headline font-extrabold">
                   {formatAmount(summary?.total_spending || 0, month)}
                 </p>
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center justify-between gap-2 mt-2">
                   <p className="text-sm text-on-surface-variant">Debits this month</p>
                   {comparison.spendingChange !== null && (
                     <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
                       comparison.spendingChange <= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
                     }`}>
-                      {comparison.spendingChange > 0 ? '+' : ''}{comparison.spendingChange.toFixed(0)}%
+                      {comparison.spendingChange > 0 ? '+' : ''}{comparison.spendingChange.toFixed(0)}% vs last month
                     </span>
                   )}
                 </div>
+                {prevSummary && (
+                  <p className="text-xs text-on-surface-variant mt-2">
+                    Last month: {formatAmount(prevSummary.total_spending, previousMonth)}
+                  </p>
+                )}
               </div>
             </div>
 

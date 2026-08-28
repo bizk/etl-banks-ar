@@ -6,6 +6,7 @@ import { categoriesApi } from '../api/categories';
 import { areasApi } from '../api/areas';
 import { useWorkspaceStore } from '../store/workspaceSlice';
 import { getString, getNumber, Transaction, Category } from '../types';
+import { parseCalendarDate } from '../utils/date';
 import { UploadPreviewModal } from '../components/transactions/UploadPreviewModal';
 import {
   TransactionFormModal,
@@ -197,7 +198,7 @@ export function TransactionsPage() {
   const openEditModal = (transaction: Transaction) => {
     setEditingId(transaction.id);
     setFormData({
-      date: format(new Date(transaction.date), 'yyyy-MM-dd'),
+      date: format(parseCalendarDate(transaction.date), 'yyyy-MM-dd'),
       description: getString(transaction.description),
       amount: getNumber(transaction.amount).toString(),
       type: getString(transaction.type) as 'debit' | 'credit',
@@ -581,7 +582,7 @@ export function TransactionsPage() {
                 const display = getCategoryDisplay(category);
                 return (
                   <tr key={t.id} className="hover:bg-surface-container-low/50">
-                    <td className="px-6 py-4 text-sm">{format(new Date(t.date), 'MMM dd, yyyy')}</td>
+                    <td className="px-6 py-4 text-sm">{format(parseCalendarDate(t.date), 'MMM dd, yyyy')}</td>
                     <td className="px-6 py-4 text-sm font-medium">{getString(t.description)}</td>
                     <td className="px-6 py-4">
                       <span

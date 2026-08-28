@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addMonths, subMonths } from 'date-fns';
 import { transactionsApi } from '../api/transactions';
@@ -18,6 +19,8 @@ import {
 } from '../components/transactions/categoryMeta';
 
 export function TransactionsPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const selectedMonth = useWorkspaceStore((state) => state.selectedMonth);
   const setSelectedMonth = useWorkspaceStore((state) => state.setSelectedMonth);
   const currentDate = new Date(selectedMonth);
@@ -25,7 +28,7 @@ export function TransactionsPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
-  const [showModal, setShowModal] = useState(false);
+  const [showModal, setShowModal] = useState(() => location.pathname === '/transactions/new');
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showCategoryFilterMenu, setShowCategoryFilterMenu] = useState(false);
   const [categoryFilterSearch, setCategoryFilterSearch] = useState('');
@@ -38,6 +41,23 @@ export function TransactionsPage() {
     category: '',
     owner: '',
   });
+
+  useEffect(() => {
+    const isNewTransactionRoute = location.pathname === '/transactions/new';
+    setShowModal(isNewTransactionRoute);
+
+    if (isNewTransactionRoute) {
+      setEditingId(null);
+      setFormData({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        description: '',
+        amount: '',
+        type: 'debit',
+        category: '',
+        owner: '',
+      });
+    }
+  }, [location.pathname]);
 
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
   const month = format(currentDate, 'yyyy-MM');
@@ -211,6 +231,9 @@ export function TransactionsPage() {
   const closeModal = () => {
     setShowModal(false);
     setEditingId(null);
+    if (location.pathname === '/transactions/new') {
+      navigate('/transactions', { replace: true });
+    }
   };
 
   const handleDelete = (id: number) => {

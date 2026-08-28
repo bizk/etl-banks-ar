@@ -21,6 +21,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/insights" element={<InsightsPage />} />
+            <Route path="/transactions/new" element={<TransactionsPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/recurring-expenses" element={<RecurringExpensesPage />} />
             <Route path="/areas" element={<AreasPage />} />

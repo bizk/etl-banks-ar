@@ -351,11 +351,11 @@ func (s *TransactionService) GetCategories(workspaceID uint) ([]string, error) {
 	return categories, err
 }
 
-func (s *TransactionService) GetOwners(workspaceID uint) ([]string, error) {
-	var owners []string
+func (s *TransactionService) GetOwners(workspaceID uint) ([]uint, error) {
+	var owners []uint
 	err := s.db.Model(&models.Transaction{}).
-		Where("workspace_id = ? AND owner IS NOT NULL AND owner != ''", workspaceID).
-		Distinct("owner").
-		Pluck("owner", &owners).Error
+		Where("workspace_id = ? AND owner_id > 0", workspaceID).
+		Distinct("owner_id").
+		Pluck("owner_id", &owners).Error
 	return owners, err
 }

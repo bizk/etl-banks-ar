@@ -213,8 +213,9 @@ func (h *RecurringExpenseHandler) Delete(c *gin.Context) {
 func (h *RecurringExpenseHandler) MarkPaid(c *gin.Context) {
 	workspaceID, _ := strconv.ParseUint(c.Param("id"), 10, 32)
 	expenseID, _ := strconv.ParseUint(c.Param("re_id"), 10, 32)
+	ownerID := c.MustGet("userID").(uint)
 
-	expense, transaction, err := h.service.MarkPaid(uint(expenseID), uint(workspaceID))
+	expense, transaction, err := h.service.MarkPaid(uint(expenseID), uint(workspaceID), ownerID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

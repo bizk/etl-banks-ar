@@ -36,7 +36,6 @@ export function TransactionsPage() {
     amount: '',
     type: 'debit',
     category: '',
-    owner: '',
   });
 
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
@@ -111,7 +110,6 @@ export function TransactionsPage() {
         amount: parseFloat(data.amount),
         type: data.type,
         category: data.category,
-        owner: data.owner || undefined,
       }),
   });
 
@@ -123,7 +121,6 @@ export function TransactionsPage() {
         amount: parseFloat(data.amount),
         type: data.type,
         category: data.category,
-        owner: data.owner || undefined,
       }),
   });
 
@@ -142,11 +139,10 @@ export function TransactionsPage() {
     await createMutation.mutateAsync(data);
     invalidateTransactionRelated();
 
-    // Keep tipo, fecha y titular cuando se cargan varias similares seguidas
+    // Keep type and date when creating several similar transactions
     if (createAnother) {
       setFormData({
         date: data.date,
-        owner: data.owner,
         type: data.type,
         description: '',
         amount: '',
@@ -190,7 +186,6 @@ export function TransactionsPage() {
       amount: '',
       type: 'debit',
       category: '',
-      owner: '',
     });
     setShowModal(true);
   };
@@ -203,7 +198,6 @@ export function TransactionsPage() {
       amount: getNumber(transaction.amount).toString(),
       type: getString(transaction.type) as 'debit' | 'credit',
       category: getString(transaction.category),
-      owner: getString(transaction.owner),
     });
     setShowModal(true);
   };
@@ -567,7 +561,7 @@ export function TransactionsPage() {
                   Amount
                 </th>
                 <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
-                  Owner
+                  Owner ID
                 </th>
                 <th className="text-right px-6 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                   Actions
@@ -597,10 +591,10 @@ export function TransactionsPage() {
                       {type === 'credit' ? '+' : '-'}${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-6 py-4">
-                      {getString(t.owner) && (
+                      {t.owner_id > 0 && (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">
                           <span className="material-symbols-outlined text-sm">person</span>
-                          {getString(t.owner)}
+                          #{t.owner_id}
                         </span>
                       )}
                     </td>

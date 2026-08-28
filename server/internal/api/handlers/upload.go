@@ -73,6 +73,7 @@ type ConfirmRequest struct {
 // Confirm saves confirmed transactions to the database
 func (h *UploadHandler) Confirm(c *gin.Context) {
 	workspaceID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	ownerID := c.MustGet("userID").(uint)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid workspace ID"})
 		return
@@ -84,7 +85,7 @@ func (h *UploadHandler) Confirm(c *gin.Context) {
 		return
 	}
 
-	count, err := h.uploadService.ConfirmTransactions(uint(workspaceID), req.Transactions)
+	count, err := h.uploadService.ConfirmTransactions(uint(workspaceID), ownerID, req.Transactions)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -14,13 +14,13 @@ type Transaction struct {
 	ID            uint            `gorm:"primaryKey" json:"id"`
 	WorkspaceID   uint            `gorm:"not null;index" json:"workspace_id"`
 	Workspace     Workspace       `gorm:"foreignKey:WorkspaceID" json:"-"`
+	OwnerID       uint            `gorm:"not null;index" json:"owner_id"`
 	Date          time.Time       `json:"date"`
 	Description   sql.NullString  `json:"description"`
 	Amount        sql.NullFloat64 `json:"amount"`
 	BalanceAfter  sql.NullFloat64 `json:"balance_after"`
 	Type          sql.NullString  `json:"type"` // "debit" | "credit"
 	Category      sql.NullString  `json:"category"`
-	Owner         sql.NullString  `json:"owner"`
 	AreaID        *uint           `json:"area_id"`
 	Area          *Area           `gorm:"foreignKey:AreaID" json:"area,omitempty"`
 	EmbeddingJSON string          `gorm:"column:embedding_json" json:"-"`

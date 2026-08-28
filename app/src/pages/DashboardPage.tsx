@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { format, addMonths, eachWeekOfInterval, endOfMonth, isSameMonth, parseISO, startOfMonth, subMonths } from 'date-fns';
+import { format, addMonths, eachWeekOfInterval, endOfMonth, isSameMonth, startOfMonth, subMonths } from 'date-fns';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { transactionsApi } from '../api/transactions';
 import { areasApi } from '../api/areas';
 import { useWorkspaceStore } from '../store/workspaceSlice';
 import { getCategoryMeta } from '../components/transactions/categoryMeta';
 import { getNumber, getString } from '../types';
+import { parseCalendarDate } from '../utils/date';
 import { useCurrency } from '../hooks/useCurrency';
 
 const DEFAULT_COLORS = [
@@ -123,7 +124,7 @@ export function DashboardPage() {
           return total;
         }
 
-        const transactionDate = parseISO(transaction.date);
+        const transactionDate = parseCalendarDate(transaction.date);
         if (!isSameMonth(transactionDate, currentDate)) {
           return total;
         }

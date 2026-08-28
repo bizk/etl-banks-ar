@@ -61,11 +61,11 @@ func (s *RecurringExpenseService) Delete(id, workspaceID uint) error {
 }
 
 type RecurringExpenseSummary struct {
-	TotalMonthly        float64 `json:"total_monthly"`
-	PaidAmount          float64 `json:"paid_amount"`
-	PendingAmount       float64 `json:"pending_amount"`
-	PreviousMonthTotal  float64 `json:"previous_month_total"`
-	ChangePercentage    float64 `json:"change_percentage"`
+	TotalMonthly       float64 `json:"total_monthly"`
+	PaidAmount         float64 `json:"paid_amount"`
+	PendingAmount      float64 `json:"pending_amount"`
+	PreviousMonthTotal float64 `json:"previous_month_total"`
+	ChangePercentage   float64 `json:"change_percentage"`
 }
 
 func (s *RecurringExpenseService) GetSummary(workspaceID uint, month time.Time) (*RecurringExpenseSummary, error) {
@@ -110,7 +110,7 @@ func (s *RecurringExpenseService) GetSummary(workspaceID uint, month time.Time) 
 	}, nil
 }
 
-func (s *RecurringExpenseService) MarkPaid(id, workspaceID uint) (*models.RecurringExpense, *models.Transaction, error) {
+func (s *RecurringExpenseService) MarkPaid(id, workspaceID, ownerID uint) (*models.RecurringExpense, *models.Transaction, error) {
 	expense, err := s.FindByID(id, workspaceID)
 	if err != nil {
 		return nil, nil, err
@@ -131,12 +131,12 @@ func (s *RecurringExpenseService) MarkPaid(id, workspaceID uint) (*models.Recurr
 
 	transaction := &models.Transaction{
 		WorkspaceID: workspaceID,
+		OwnerID:     ownerID,
 		Date:        now,
 		Description: sql.NullString{String: expense.Name, Valid: true},
 		Amount:      sql.NullFloat64{Float64: expense.Amount, Valid: true},
 		Type:        sql.NullString{String: "debit", Valid: true},
 		Category:    sql.NullString{String: categoryName, Valid: categoryName != ""},
-		Owner:       sql.NullString{String: expense.Owner, Valid: expense.Owner != ""},
 	}
 
 	// Use transaction to ensure atomicity

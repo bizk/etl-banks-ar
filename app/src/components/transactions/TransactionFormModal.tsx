@@ -14,7 +14,6 @@ export interface TransactionFormData {
   amount: string;
   type: 'debit' | 'credit';
   category: string;
-  owner: string;
 }
 
 export interface CategoryDisplay {
@@ -480,25 +479,6 @@ export function TransactionFormModal(props: TransactionFormModalProps): ReactEle
                   : 'Filtrá por nombre o guardá para crear una categoría nueva con el texto ingresado.'}
               </p>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-on-surface-variant">Titular</label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                  <span className="material-symbols-outlined text-on-surface-variant">person</span>
-                </div>
-                <input
-                  type="text"
-                  value={formData.owner}
-                  onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                  className="w-full rounded-lg border-none bg-surface-container-low py-3 pl-14 pr-4"
-                  placeholder="¿Quién realizó este movimiento?"
-                />
-              </div>
-              <p className="mt-2 text-xs text-on-surface-variant">
-                Nombre de la persona responsable del movimiento.
-              </p>
-            </div>
-
             {!editingId ? (
               <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-surface-container-low px-3 py-2">
                 <input
@@ -508,7 +488,7 @@ export function TransactionFormModal(props: TransactionFormModalProps): ReactEle
                   onChange={(e) => setCreateAnotherAfterSave(e.target.checked)}
                 />
                 <span className="text-sm font-medium text-on-surface">
-                  Crear otra transacción (mantener fecha y titular)
+                  Crear otra transacción (mantener fecha y tipo)
                 </span>
               </label>
             ) : null}

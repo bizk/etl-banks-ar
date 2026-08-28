@@ -26,7 +26,6 @@ type CreateTransactionRequest struct {
 	Amount      float64 `json:"amount" binding:"required"`
 	Type        string  `json:"type" binding:"required,oneof=debit credit"`
 	Category    string  `json:"category"`
-	Owner       string  `json:"owner"`
 	AreaID      *uint   `json:"area_id"`
 }
 
@@ -36,9 +35,21 @@ type UpdateTransactionRequest struct {
 	Amount        *float64 `json:"amount"`
 	Type          *string  `json:"type"`
 	Category      *string  `json:"category"`
-	Owner         *string  `json:"owner"`
 	AreaID        *uint    `json:"area_id"`
 	UserConfirmed *bool    `json:"user_confirmed"`
+}
+
+func buildTransaction(workspaceID, ownerID uint, req CreateTransactionRequest, date time.Time) *models.Transaction {
+	return &models.Transaction{
+		WorkspaceID: workspaceID,
+		OwnerID:     ownerID,
+		Date:        date,
+		Description: sql.NullString{String: req.Description, Valid: true},
+		Amount:      sql.NullFloat64{Float64: req.Amount, Valid: true},
+		Type:        sql.NullString{String: req.Type, Valid: true},
+		Category:    sql.NullString{String: req.Category, Valid: req.Category != ""},
+		AreaID:      req.AreaID,
+	}
 }
 
 func (h *TransactionHandler) List(c *gin.Context) {
@@ -84,6 +95,7 @@ func (h *TransactionHandler) List(c *gin.Context) {
 
 func (h *TransactionHandler) Create(c *gin.Context) {
 	workspaceID, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+	ownerID := c.MustGet("userID").(uint)
 
 	var req CreateTransactionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -97,16 +109,7 @@ func (h *TransactionHandler) Create(c *gin.Context) {
 		return
 	}
 
-	transaction := &models.Transaction{
-		WorkspaceID: uint(workspaceID),
-		Date:        date,
-		Description: sql.NullString{String: req.Description, Valid: true},
-		Amount:      sql.NullFloat64{Float64: req.Amount, Valid: true},
-		Type:        sql.NullString{String: req.Type, Valid: true},
-		Category:    sql.NullString{String: req.Category, Valid: req.Category != ""},
-		Owner:       sql.NullString{String: req.Owner, Valid: req.Owner != ""},
-		AreaID:      req.AreaID,
-	}
+	transaction := buildTransaction(uint(workspaceID), ownerID, req, date)
 
 	if err := h.transactionService.Create(transaction); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create transaction"})
@@ -162,9 +165,6 @@ func (h *TransactionHandler) Update(c *gin.Context) {
 	}
 	if req.Category != nil {
 		transaction.Category = sql.NullString{String: *req.Category, Valid: *req.Category != ""}
-	}
-	if req.Owner != nil {
-		transaction.Owner = sql.NullString{String: *req.Owner, Valid: *req.Owner != ""}
 	}
 	if req.AreaID != nil {
 		transaction.AreaID = req.AreaID

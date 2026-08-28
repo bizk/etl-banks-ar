@@ -186,7 +186,7 @@ type ConfirmTransactionInput struct {
 }
 
 // ConfirmTransactions saves the confirmed transactions to the database
-func (s *UploadService) ConfirmTransactions(workspaceID uint, transactions []ConfirmTransactionInput) (int, error) {
+func (s *UploadService) ConfirmTransactions(workspaceID, ownerID uint, transactions []ConfirmTransactionInput) (int, error) {
 	if len(transactions) == 0 {
 		return 0, nil
 	}
@@ -200,6 +200,7 @@ func (s *UploadService) ConfirmTransactions(workspaceID uint, transactions []Con
 
 		models_txns = append(models_txns, models.Transaction{
 			WorkspaceID:   workspaceID,
+			OwnerID:       ownerID,
 			Date:          date,
 			Description:   sql.NullString{String: tx.Description, Valid: tx.Description != ""},
 			Amount:        sql.NullFloat64{Float64: tx.Amount, Valid: true},

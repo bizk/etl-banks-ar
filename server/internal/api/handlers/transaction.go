@@ -97,6 +97,10 @@ func (h *TransactionHandler) Create(c *gin.Context) {
 		return
 	}
 
+	owner := req.Owner
+	if owner == "" {
+		owner = h.transactionService.UserName(c.MustGet("userID").(uint))
+	}
 	transaction := &models.Transaction{
 		WorkspaceID: uint(workspaceID),
 		Date:        date,
@@ -104,7 +108,7 @@ func (h *TransactionHandler) Create(c *gin.Context) {
 		Amount:      sql.NullFloat64{Float64: req.Amount, Valid: true},
 		Type:        sql.NullString{String: req.Type, Valid: true},
 		Category:    sql.NullString{String: req.Category, Valid: req.Category != ""},
-		Owner:       sql.NullString{String: req.Owner, Valid: req.Owner != ""},
+		Owner:       sql.NullString{String: owner, Valid: owner != ""},
 		AreaID:      req.AreaID,
 	}
 

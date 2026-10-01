@@ -18,9 +18,9 @@ interface UpdateRecurringExpenseRequest {
 }
 
 export const recurringExpensesApi = {
-  list: async (workspaceId: number): Promise<{ recurring_expenses: RecurringExpense[] }> => {
+  list: async (workspaceId: number, month?: string): Promise<{ recurring_expenses: RecurringExpense[] }> => {
     const response = await apiClient.get<{ recurring_expenses: RecurringExpense[] }>(
-      `/workspaces/${workspaceId}/recurring-expenses`
+      `/workspaces/${workspaceId}/recurring-expenses`, { params: month ? { month } : {} }
     );
     return response.data;
   },
@@ -61,9 +61,9 @@ export const recurringExpensesApi = {
     await apiClient.delete(`/workspaces/${workspaceId}/recurring-expenses/${id}`);
   },
 
-  markPaid: async (workspaceId: number, id: number): Promise<{ recurring_expense: RecurringExpense; transaction?: Transaction }> => {
+  markPaid: async (workspaceId: number, id: number, month?: string): Promise<{ recurring_expense: RecurringExpense; transaction?: Transaction }> => {
     const response = await apiClient.post<{ recurring_expense: RecurringExpense; transaction?: Transaction }>(
-      `/workspaces/${workspaceId}/recurring-expenses/${id}/mark-paid`
+      `/workspaces/${workspaceId}/recurring-expenses/${id}/mark-paid`, undefined, { params: month ? { month } : {} }
     );
     return response.data;
   },

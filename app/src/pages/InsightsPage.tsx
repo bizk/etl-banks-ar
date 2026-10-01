@@ -25,6 +25,8 @@ function YearlyTreemapCell(props: {
     name?: string;
     size?: number;
     fill?: string;
+    fillOpacity?: number;
+    currency?: string;
   };
   root?: {
     children?: Array<{ value?: number }>;
@@ -42,6 +44,7 @@ function YearlyTreemapCell(props: {
   const label = name || payload?.name || 'Uncategorized';
   const amount = value ?? payload?.size ?? 0;
   const fill = payload?.fill || '#10b981';
+  const fillOpacity = payload?.fillOpacity || 0.98;
   const fontSize = width > 140 && height > 90 ? 15 : 12;
   const amountFontSize = width > 140 && height > 90 ? 13 : 11;
   const showAmount = width > 90 && height > 54;
@@ -57,7 +60,7 @@ function YearlyTreemapCell(props: {
         rx={12}
         ry={12}
         fill={fill}
-        fillOpacity={0.98}
+        fillOpacity={fillOpacity}
         stroke="#ffffff"
         strokeWidth={3}
       />
@@ -77,7 +80,7 @@ function YearlyTreemapCell(props: {
       )}
       {showAmount && (
         <text x={x + 12} y={y + 44} fill="rgba(255,255,255,0.92)" fontSize={amountFontSize} fontWeight={600}>
-          ${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+          {payload?.currency || '$'}{amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
         </text>
       )}
     </g>
@@ -90,7 +93,8 @@ export function InsightsPage() {
   const setSelectedMonth = useWorkspaceStore((state) => state.setSelectedMonth);
   const currentDate = new Date(selectedMonth);
   const year = format(currentDate, 'yyyy');
-  const { formatAmount } = useCurrency();
+  const { convertAmount, isUSD } = useCurrency();
+  const displayAmount = (amount: number) => `${isUSD ? 'US$' : '$'}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const [expandedAreas, setExpandedAreas] = useState<Set<number | null>>(new Set());
 
@@ -120,8 +124,18 @@ export function InsightsPage() {
     enabled: !!currentWorkspace?.id,
   });
 
-  const yearlySummary = yearlySummaryData?.summary;
-  const yearlyAreas = yearlyAreaData?.areas || [];
+  const rawYearlySummary = yearlySummaryData?.summary;
+  const yearlyAreas = useMemo(() => (yearlyAreaData?.areas || []).map((area) => {
+    const monthly = area.monthly.map((entry) => ({ ...entry, amount: convertAmount(entry.amount, entry.month) }));
+    const categories = area.categories.map((category) => ({ ...category, amount: category.monthly.reduce((sum, entry) => sum + convertAmount(entry.amount, entry.month), 0) }));
+    return { ...area, monthly, categories, amount: monthly.reduce((sum, item) => sum + item.amount, 0) };
+  }), [yearlyAreaData, convertAmount]);
+  const yearlySummary = useMemo(() => {
+    if (!rawYearlySummary) return undefined;
+    const spending = rawYearlySummary.monthly.reduce((sum, item) => sum + convertAmount(item.spending, item.month), 0);
+    const income = rawYearlySummary.monthly.reduce((sum, item) => sum + convertAmount(item.income, item.month), 0);
+    return { ...rawYearlySummary, total_spending: spending, total_income: income, net: income - spending };
+  }, [rawYearlySummary, convertAmount]);
 
   const handlePrevYear = () => setSelectedMonth(subYears(currentDate, 1));
   const handleNextYear = () => setSelectedMonth(addYears(currentDate, 1));
@@ -134,10 +148,12 @@ export function InsightsPage() {
         .map((area, index) => ({
           name: area.area_name || 'Uncategorized',
           size: area.amount,
+          fillOpacity: 0.35 + (area.amount / Math.max(...yearlyAreas.map((item) => item.amount), 1)) * 0.65,
+          currency: isUSD ? 'US$' : '$',
           fill: area.area_id === null ? '#9ca3af' : (area.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]),
         }))
         .sort((a, b) => b.size - a.size),
-    [yearlyAreas]
+    [yearlyAreas, isUSD]
   );
 
   // Area comparison data with "vs last month" calculation
@@ -235,19 +251,19 @@ export function InsightsPage() {
             <div className="bg-surface-container-lowest p-8 rounded-xl">
               <p className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant opacity-50">Yearly Spending</p>
               <p className="mt-4 text-4xl font-headline font-extrabold">
-                {formatAmount(yearlySummary?.total_spending || 0)}
+                {displayAmount(yearlySummary?.total_spending || 0)}
               </p>
             </div>
             <div className="bg-surface-container-lowest p-8 rounded-xl">
               <p className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant opacity-50">Yearly Income</p>
               <p className="mt-4 text-4xl font-headline font-extrabold text-primary">
-                {formatAmount(yearlySummary?.total_income || 0)}
+                {displayAmount(yearlySummary?.total_income || 0)}
               </p>
             </div>
             <div className="bg-surface-container-lowest p-8 rounded-xl">
               <p className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant opacity-50">Net</p>
               <p className={`mt-4 text-4xl font-headline font-extrabold ${(yearlySummary?.net || 0) >= 0 ? 'text-primary' : 'text-error'}`}>
-                {formatAmount(Math.abs(yearlySummary?.net || 0))}
+                {displayAmount(Math.abs(yearlySummary?.net || 0))}
               </p>
             </div>
           </section>
@@ -310,7 +326,7 @@ export function InsightsPage() {
                         <span className="font-semibold truncate">{area.area_name}</span>
                       </div>
                       <span className="text-sm font-semibold text-on-surface-variant">
-                        Avg ${area.average.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                        Avg {displayAmount(area.average)}
                       </span>
                     </div>
                   </div>
@@ -375,24 +391,24 @@ export function InsightsPage() {
                                   )}
                                 </div>
                                 <p className="text-sm text-on-surface-variant">
-                                  Avg ${area.average.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                  Avg {displayAmount(area.average)}
                                 </p>
                               </div>
                             </div>
                           </button>
 
                           {area.monthly.map((entry) => {
-                            const toneClassName =
+                                            const toneClassName =
                               entry.tone === 'positive'
-                                ? 'bg-emerald-50 text-emerald-700'
+                                ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
                                 : entry.tone === 'negative'
-                                  ? 'bg-rose-50 text-rose-700'
+                                  ? 'bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200'
                                   : 'bg-surface-container text-on-surface-variant';
 
                             return (
                               <div key={`${area.area_id}-${entry.month}`} className={`rounded-2xl p-3 text-center ${toneClassName}`}>
                                 <p className="text-sm font-semibold">
-                                  ${entry.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                  {displayAmount(entry.amount)}
                                 </p>
                                 {entry.percentFromLastMonth !== null && (
                                   <p className="mt-2 text-xs font-semibold">
@@ -421,7 +437,7 @@ export function InsightsPage() {
                                       <div className="min-w-0 flex-1">
                                         <p className="font-medium text-sm truncate">{cat.category_name}</p>
                                         <p className="text-xs text-on-surface-variant">
-                                          ${cat.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })} total
+                                          {displayAmount(cat.amount)} total
                                         </p>
                                       </div>
                                     </div>

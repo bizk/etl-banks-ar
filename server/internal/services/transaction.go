@@ -150,6 +150,14 @@ func (s *TransactionService) Create(t *models.Transaction) error {
 	return s.db.Create(t).Error
 }
 
+func (s *TransactionService) UserName(id uint) string {
+	var user models.User
+	if s.db.Select("name").First(&user, id).Error != nil {
+		return ""
+	}
+	return user.Name
+}
+
 func (s *TransactionService) FindByID(id, workspaceID uint) (*models.Transaction, error) {
 	var transaction models.Transaction
 	err := s.db.Where("id = ? AND workspace_id = ?", id, workspaceID).First(&transaction).Error
@@ -195,7 +203,14 @@ type YearlySummary struct {
 	TotalSpending float64                 `json:"total_spending"`
 	TotalIncome   float64                 `json:"total_income"`
 	Net           float64                 `json:"net"`
+	Monthly       []YearlyMonthlySummary  `json:"monthly"`
 	ByCategory    []YearlyCategorySummary `json:"by_category"`
+}
+
+type YearlyMonthlySummary struct {
+	Month    string  `json:"month"`
+	Spending float64 `json:"spending"`
+	Income   float64 `json:"income"`
 }
 
 func (s *TransactionService) GetMonthlySummary(workspaceID uint, month string) (*MonthlySummary, error) {
@@ -273,6 +288,26 @@ func (s *TransactionService) GetYearlySummary(workspaceID uint, year string) (*Y
 		Select("COALESCE(SUM(amount), 0)").
 		Scan(&creditTotal)
 
+	monthly := make([]YearlyMonthlySummary, 12)
+	for i := range monthly {
+		monthly[i].Month = startDate.AddDate(0, i, 0).Format("2006-01")
+	}
+	var monthlyRows []struct {
+		Month  string
+		Type   string
+		Amount float64
+	}
+	s.db.Model(&models.Transaction{}).Select("DATE_FORMAT(date, '%Y-%m') as month, type, COALESCE(SUM(amount), 0) as amount").Where("workspace_id = ? AND date >= ? AND date < ?", workspaceID, startDate, endDate).Group("YEAR(date), MONTH(date), type").Scan(&monthlyRows)
+	for _, row := range monthlyRows {
+		if m, e := time.Parse("2006-01", row.Month); e == nil {
+			if row.Type == "debit" {
+				monthly[int(m.Month())-1].Spending = row.Amount
+			} else if row.Type == "credit" {
+				monthly[int(m.Month())-1].Income = row.Amount
+			}
+		}
+	}
+
 	var categoryRows []struct {
 		Category string
 		Month    string
@@ -338,6 +373,7 @@ func (s *TransactionService) GetYearlySummary(workspaceID uint, year string) (*Y
 		TotalSpending: debitTotal.Float64,
 		TotalIncome:   creditTotal.Float64,
 		Net:           creditTotal.Float64 - debitTotal.Float64,
+		Monthly:       monthly,
 		ByCategory:    categories,
 	}, nil
 }

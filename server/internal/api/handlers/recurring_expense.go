@@ -82,7 +82,8 @@ func toRecurringExpenseResponse(exp *models.RecurringExpense) RecurringExpenseRe
 func (h *RecurringExpenseHandler) List(c *gin.Context) {
 	workspaceID, _ := strconv.ParseUint(c.Param("id"), 10, 32)
 
-	expenses, err := h.service.List(uint(workspaceID))
+	month := c.DefaultQuery("month", time.Now().Format("2006-01"))
+	expenses, err := h.service.List(uint(workspaceID), month)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch recurring expenses"})
 		return
@@ -214,7 +215,9 @@ func (h *RecurringExpenseHandler) MarkPaid(c *gin.Context) {
 	workspaceID, _ := strconv.ParseUint(c.Param("id"), 10, 32)
 	expenseID, _ := strconv.ParseUint(c.Param("re_id"), 10, 32)
 
-	expense, transaction, err := h.service.MarkPaid(uint(expenseID), uint(workspaceID))
+	month := c.DefaultQuery("month", time.Now().Format("2006-01"))
+	userID := c.MustGet("userID").(uint)
+	expense, transaction, err := h.service.MarkPaid(uint(expenseID), uint(workspaceID), month, userID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

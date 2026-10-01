@@ -6,6 +6,8 @@ import { transactionsApi } from '../api/transactions';
 import { categoriesApi } from '../api/categories';
 import { areasApi } from '../api/areas';
 import { useWorkspaceStore } from '../store/workspaceSlice';
+import { useAuthStore } from '../store/authSlice';
+import { useCurrency } from '../hooks/useCurrency';
 import { getString, getNumber, Transaction, Category } from '../types';
 import { parseCalendarDate } from '../utils/date';
 import { UploadPreviewModal } from '../components/transactions/UploadPreviewModal';
@@ -23,6 +25,9 @@ export function TransactionsPage() {
   const navigate = useNavigate();
   const selectedMonth = useWorkspaceStore((state) => state.selectedMonth);
   const setSelectedMonth = useWorkspaceStore((state) => state.setSelectedMonth);
+  const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
+  const currentUser = useAuthStore((state) => state.user);
+  const { formatAmount } = useCurrency();
   const currentDate = new Date(selectedMonth);
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState('');
@@ -54,12 +59,11 @@ export function TransactionsPage() {
         amount: '',
         type: 'debit',
         category: '',
-        owner: '',
+        owner: currentUser?.name || '',
       });
     }
-  }, [location.pathname]);
+  }, [location.pathname, currentUser?.name]);
 
-  const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
   const month = format(currentDate, 'yyyy-MM');
   const queryClient = useQueryClient();
   const hasActiveFilters = Boolean(categoryFilter.length > 0 || typeFilter || sortOrder !== 'desc');
@@ -210,7 +214,7 @@ export function TransactionsPage() {
       amount: '',
       type: 'debit',
       category: '',
-      owner: '',
+      owner: currentUser?.name || '',
     });
     setShowModal(true);
   };
@@ -346,19 +350,19 @@ export function TransactionsPage() {
           <div className="bg-surface-container-lowest p-4 rounded-xl">
             <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Debits</p>
             <p className="text-xl font-bold text-error">
-              -${summary.debit_total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              -{formatAmount(summary.debit_total, month)}
             </p>
           </div>
           <div className="bg-surface-container-lowest p-4 rounded-xl">
             <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Credits</p>
             <p className="text-xl font-bold text-primary">
-              +${summary.credit_total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              +{formatAmount(summary.credit_total, month)}
             </p>
           </div>
           <div className="bg-surface-container-lowest p-4 rounded-xl">
             <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Total</p>
             <p className="text-xl font-bold">
-              ${summary.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatAmount(summary.total_amount, month)}
             </p>
           </div>
         </div>
@@ -617,7 +621,7 @@ export function TransactionsPage() {
                       </span>
                     </td>
                     <td className={`px-6 py-4 text-sm font-bold text-right ${type === 'credit' ? 'text-primary' : 'text-error'}`}>
-                      {type === 'credit' ? '+' : '-'}${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {type === 'credit' ? '+' : '-'}{formatAmount(amount, format(parseCalendarDate(typeof t.date === 'string' ? t.date : ''), 'yyyy-MM'))}
                     </td>
                     <td className="px-6 py-4">
                       {getString(t.owner) && (

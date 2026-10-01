@@ -119,7 +119,7 @@ func (s *AreaService) GetMonthlySummary(workspaceID uint, month string) (*AreaSu
 		categories map[string]*categoryData
 	}
 
-	areaSummaries := make(map[uint]*areaData)        // keyed by area ID
+	areaSummaries := make(map[uint]*areaData) // keyed by area ID
 	uncategorized := &areaData{categories: make(map[string]*categoryData)}
 
 	var totalSpent float64
@@ -233,10 +233,11 @@ type MonthlyAreaAmount struct {
 }
 
 type YearlyAreaCategorySummary struct {
-	CategoryID   uint    `json:"category_id"`
-	CategoryName string  `json:"category_name"`
-	Amount       float64 `json:"amount"`
-	Count        int     `json:"count"`
+	CategoryID   uint                `json:"category_id"`
+	CategoryName string              `json:"category_name"`
+	Amount       float64             `json:"amount"`
+	Count        int                 `json:"count"`
+	Monthly      []MonthlyAreaAmount `json:"monthly"`
 }
 
 type YearlyAreaItem struct {
@@ -309,10 +310,11 @@ func (s *AreaService) GetYearlySummary(workspaceID uint, year string) (*YearlyAr
 
 	// Build summary by area
 	type categoryData struct {
-		id     uint
-		name   string
-		amount float64
-		count  int
+		id      uint
+		name    string
+		amount  float64
+		count   int
+		monthly []MonthlyAreaAmount
 	}
 	type areaData struct {
 		area       *models.Area
@@ -369,18 +371,27 @@ func (s *AreaService) GetYearlySummary(workspaceID uint, year string) (*YearlyAr
 		}
 
 		// Update category data
+		categoryMonthIndex := -1
+		if err == nil {
+			categoryMonthIndex = int(txnMonth.Month()) - 1
+		}
 		catName := txn.Category
 		if catName == "" {
 			catName = "Uncategorized"
 		}
 		if _, exists := target.categories[catName]; !exists {
-			target.categories[catName] = &categoryData{name: catName}
+			monthly := make([]MonthlyAreaAmount, len(monthlyTemplate))
+			copy(monthly, monthlyTemplate)
+			target.categories[catName] = &categoryData{name: catName, monthly: monthly}
 			if txn.CategoryID != nil {
 				target.categories[catName].id = *txn.CategoryID
 			}
 		}
 		target.categories[catName].amount += txn.Amount
 		target.categories[catName].count++
+		if categoryMonthIndex >= 0 && categoryMonthIndex < len(target.categories[catName].monthly) {
+			target.categories[catName].monthly[categoryMonthIndex].Amount += txn.Amount
+		}
 	}
 
 	// Build response
@@ -404,10 +415,7 @@ func (s *AreaService) GetYearlySummary(workspaceID uint, year string) (*YearlyAr
 		}
 		for _, cat := range data.categories {
 			item.Categories = append(item.Categories, YearlyAreaCategorySummary{
-				CategoryID:   cat.id,
-				CategoryName: cat.name,
-				Amount:       cat.amount,
-				Count:        cat.count,
+				CategoryID: cat.id, CategoryName: cat.name, Amount: cat.amount, Count: cat.count, Monthly: cat.monthly,
 			})
 		}
 		response.Areas = append(response.Areas, item)
@@ -424,10 +432,7 @@ func (s *AreaService) GetYearlySummary(workspaceID uint, year string) (*YearlyAr
 		}
 		for _, cat := range uncategorized.categories {
 			item.Categories = append(item.Categories, YearlyAreaCategorySummary{
-				CategoryID:   cat.id,
-				CategoryName: cat.name,
-				Amount:       cat.amount,
-				Count:        cat.count,
+				CategoryID: cat.id, CategoryName: cat.name, Amount: cat.amount, Count: cat.count, Monthly: cat.monthly,
 			})
 		}
 		response.Areas = append(response.Areas, item)

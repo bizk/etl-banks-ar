@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, subMonths, addMonths } from 'date-fns';
+import { parseCalendarDate } from '../utils/date';
 import { exchangeRatesApi } from '../api/exchangeRates';
 import { useWorkspaceStore } from '../store/workspaceSlice';
 import { useCurrency } from '../hooks/useCurrency';
@@ -60,26 +61,25 @@ export function ExchangeRateModal({ isOpen, onClose }: ExchangeRateModalProps) {
   };
 
   const handlePrevMonth = () => {
-    const date = new Date(selectedMonth + '-01');
+    const date = parseCalendarDate(`${selectedMonth}-01`);
     setSelectedMonth(format(subMonths(date, 1), 'yyyy-MM'));
   };
 
   const handleNextMonth = () => {
-    const date = new Date(selectedMonth + '-01');
+    const date = parseCalendarDate(`${selectedMonth}-01`);
     setSelectedMonth(format(addMonths(date, 1), 'yyyy-MM'));
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div
-        className="bg-surface-container-lowest rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <button type="button" aria-label="Close exchange rates" className="absolute inset-0" onClick={onClose} />
+      <div className="relative bg-surface-container-lowest rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-headline font-bold">Exchange Rates</h2>
           <button
+            type="button"
             onClick={onClose}
             className="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center"
           >
@@ -90,13 +90,14 @@ export function ExchangeRateModal({ isOpen, onClose }: ExchangeRateModalProps) {
         <div className="mb-6">
           <div className="flex items-center justify-center gap-4 mb-4">
             <button
+              type="button"
               onClick={handlePrevMonth}
               className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors"
             >
               <span className="material-symbols-outlined">chevron_left</span>
             </button>
             <span className="font-headline font-bold text-lg min-w-[120px] text-center">
-              {format(new Date(selectedMonth + '-01'), 'MMM yyyy')}
+              {format(parseCalendarDate(`${selectedMonth}-01`), 'MMM yyyy')}
             </span>
             <button
               onClick={handleNextMonth}
@@ -108,10 +109,11 @@ export function ExchangeRateModal({ isOpen, onClose }: ExchangeRateModalProps) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-on-surface-variant mb-2">
+              <label htmlFor="exchange-rate" className="block text-sm font-medium text-on-surface-variant mb-2">
                 ARS per USD
               </label>
               <input
+                id="exchange-rate"
                 type="number"
                 step="0.01"
                 min="0"
@@ -121,7 +123,7 @@ export function ExchangeRateModal({ isOpen, onClose }: ExchangeRateModalProps) {
                 className="w-full px-4 py-3 rounded-xl border border-surface-container bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary"
               />
               <p className="text-xs text-on-surface-variant mt-1">
-                Enter the exchange rate for {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}
+                Enter the exchange rate for {format(parseCalendarDate(`${selectedMonth}-01`), 'MMMM yyyy')}
               </p>
             </div>
 
@@ -154,6 +156,7 @@ export function ExchangeRateModal({ isOpen, onClose }: ExchangeRateModalProps) {
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {exchangeRates.map((r) => (
                 <button
+                  type="button"
                   key={r.month}
                   onClick={() => setSelectedMonth(r.month)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
@@ -163,7 +166,7 @@ export function ExchangeRateModal({ isOpen, onClose }: ExchangeRateModalProps) {
                   }`}
                 >
                   <span className="font-medium">
-                    {format(new Date(r.month + '-01'), 'MMM yyyy')}
+                    {format(parseCalendarDate(`${r.month}-01`), 'MMM yyyy')}
                   </span>
                   <span className="text-sm">
                     ${r.rate.toLocaleString('en-US', { minimumFractionDigits: 2 })} / USD

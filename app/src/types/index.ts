@@ -89,6 +89,7 @@ export interface YearlySummary {
   total_spending: number;
   total_income: number;
   net: number;
+  monthly: { month: string; spending: number; income: number }[];
   by_category: YearlyCategorySummary[];
 }
 
@@ -182,6 +183,7 @@ export interface YearlyAreaCategorySummary {
   category_name: string;
   amount: number;
   count: number;
+  monthly: MonthlyAreaAmount[];
 }
 
 export interface YearlyAreaItem {

@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { addMonths, format, subMonths } from 'date-fns';
 import { recurringExpensesApi } from '../api/recurringExpenses';
 import { categoriesApi } from '../api/categories';
 import { useWorkspaceStore } from '../store/workspaceSlice';
+import { useAuthStore } from '../store/authSlice';
 import type { RecurringExpense, Category } from '../types';
 import { normalizeCategory } from '../components/transactions/categoryMeta';
 
@@ -17,6 +18,10 @@ interface RecurringExpenseFormData {
 
 export function RecurringExpensesPage() {
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
+  const currentUser = useAuthStore((state) => state.user);
+  const selectedMonthDate = useWorkspaceStore((state) => state.selectedMonth);
+  const setSelectedMonth = useWorkspaceStore((state) => state.setSelectedMonth);
+  const month = format(selectedMonthDate, 'yyyy-MM');
   const queryClient = useQueryClient();
 
   const [showModal, setShowModal] = useState(false);
@@ -32,14 +37,14 @@ export function RecurringExpensesPage() {
   });
 
   const { data: expensesData, isLoading } = useQuery({
-    queryKey: ['recurringExpenses', currentWorkspace?.id],
-    queryFn: () => recurringExpensesApi.list(currentWorkspace!.id),
+    queryKey: ['recurringExpenses', currentWorkspace?.id, month],
+    queryFn: () => recurringExpensesApi.list(currentWorkspace!.id, month),
     enabled: !!currentWorkspace?.id,
   });
 
   const { data: summaryData } = useQuery({
-    queryKey: ['recurringExpensesSummary', currentWorkspace?.id],
-    queryFn: () => recurringExpensesApi.getSummary(currentWorkspace!.id),
+    queryKey: ['recurringExpensesSummary', currentWorkspace?.id, month],
+    queryFn: () => recurringExpensesApi.getSummary(currentWorkspace!.id, month),
     enabled: !!currentWorkspace?.id,
   });
 
@@ -90,7 +95,7 @@ export function RecurringExpensesPage() {
   });
 
   const markPaidMutation = useMutation({
-    mutationFn: (id: number) => recurringExpensesApi.markPaid(currentWorkspace!.id, id),
+    mutationFn: (id: number) => recurringExpensesApi.markPaid(currentWorkspace!.id, id, month),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recurringExpenses'] });
       queryClient.invalidateQueries({ queryKey: ['recurringExpensesSummary'] });
@@ -101,7 +106,7 @@ export function RecurringExpensesPage() {
 
   const openCreateModal = () => {
     setEditingId(null);
-    setFormData({ name: '', amount: '', category_id: null, owner: '', due_day: '' });
+    setFormData({ name: '', amount: '', category_id: null, owner: currentUser?.name || '', due_day: '' });
     setCategorySearch('');
     setShowModal(true);
   };
@@ -191,9 +196,11 @@ export function RecurringExpensesPage() {
       {/* Header */}
       <header className="mb-8">
         <h1 className="text-4xl font-headline font-extrabold tracking-tight text-on-surface">Recurring Expenses</h1>
-        <p className="text-on-surface-variant mt-2 font-medium opacity-60">
-          Monthly expense templates for {format(new Date(), 'MMMM yyyy')}
-        </p>
+        <div className="mt-2 flex items-center gap-3 text-on-surface-variant">
+          <button type="button" aria-label="Previous month" onClick={() => setSelectedMonth(subMonths(selectedMonthDate, 1))}><span className="material-symbols-outlined">chevron_left</span></button>
+          <p className="font-medium">Planned spending for {format(selectedMonthDate, 'MMMM yyyy')}</p>
+          <button type="button" aria-label="Next month" onClick={() => setSelectedMonth(addMonths(selectedMonthDate, 1))}><span className="material-symbols-outlined">chevron_right</span></button>
+        </div>
       </header>
 
       {/* Summary Cards */}

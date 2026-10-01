@@ -41,6 +41,7 @@ func Migrate() {
 		&models.Category{},
 		&models.Transaction{},
 		&models.RecurringExpense{},
+		&models.RecurringExpensePayment{},
 		&models.ExchangeRate{},
 	)
 	if err != nil {

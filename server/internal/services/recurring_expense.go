@@ -10,6 +10,13 @@ import (
 	"gorm.io/gorm"
 )
 
+func firstNonEmpty(value, fallback string) string {
+	if value != "" {
+		return value
+	}
+	return fallback
+}
+
 type RecurringExpenseService struct {
 	db *gorm.DB
 }
@@ -18,13 +25,28 @@ func NewRecurringExpenseService(db *gorm.DB) *RecurringExpenseService {
 	return &RecurringExpenseService{db: db}
 }
 
-func (s *RecurringExpenseService) List(workspaceID uint) ([]models.RecurringExpense, error) {
+func (s *RecurringExpenseService) List(workspaceID uint, month string) ([]models.RecurringExpense, error) {
 	var expenses []models.RecurringExpense
-	err := s.db.Preload("Category").Preload("Category.Area").
-		Where("workspace_id = ?", workspaceID).
-		Order("due_day ASC").
-		Find(&expenses).Error
-	return expenses, err
+	if err := s.db.Preload("Category").Preload("Category.Area").Where("workspace_id = ?", workspaceID).Order("due_day ASC").Find(&expenses).Error; err != nil {
+		return nil, err
+	}
+	var payments []models.RecurringExpensePayment
+	if err := s.db.Where("month = ? AND recurring_expense_id IN (?)", month, s.db.Model(&models.RecurringExpense{}).Select("id").Where("workspace_id = ?", workspaceID)).Find(&payments).Error; err != nil {
+		return nil, err
+	}
+	paid := make(map[uint]time.Time, len(payments))
+	for _, p := range payments {
+		paid[p.RecurringExpenseID] = p.PaidAt
+	}
+	for i := range expenses {
+		expenses[i].PaidForMonth = month
+		if date, ok := paid[expenses[i].ID]; ok {
+			expenses[i].LastPaidDate = &date
+		} else {
+			expenses[i].LastPaidDate = nil
+		}
+	}
+	return expenses, nil
 }
 
 func (s *RecurringExpenseService) FindByID(id, workspaceID uint) (*models.RecurringExpense, error) {
@@ -61,15 +83,15 @@ func (s *RecurringExpenseService) Delete(id, workspaceID uint) error {
 }
 
 type RecurringExpenseSummary struct {
-	TotalMonthly        float64 `json:"total_monthly"`
-	PaidAmount          float64 `json:"paid_amount"`
-	PendingAmount       float64 `json:"pending_amount"`
-	PreviousMonthTotal  float64 `json:"previous_month_total"`
-	ChangePercentage    float64 `json:"change_percentage"`
+	TotalMonthly       float64 `json:"total_monthly"`
+	PaidAmount         float64 `json:"paid_amount"`
+	PendingAmount      float64 `json:"pending_amount"`
+	PreviousMonthTotal float64 `json:"previous_month_total"`
+	ChangePercentage   float64 `json:"change_percentage"`
 }
 
 func (s *RecurringExpenseService) GetSummary(workspaceID uint, month time.Time) (*RecurringExpenseSummary, error) {
-	expenses, err := s.List(workspaceID)
+	expenses, err := s.List(workspaceID, month.Format("2006-01"))
 	if err != nil {
 		return nil, err
 	}
@@ -110,18 +132,27 @@ func (s *RecurringExpenseService) GetSummary(workspaceID uint, month time.Time) 
 	}, nil
 }
 
-func (s *RecurringExpenseService) MarkPaid(id, workspaceID uint) (*models.RecurringExpense, *models.Transaction, error) {
+func (s *RecurringExpenseService) MarkPaid(id, workspaceID uint, month string, userID uint) (*models.RecurringExpense, *models.Transaction, error) {
 	expense, err := s.FindByID(id, workspaceID)
 	if err != nil {
 		return nil, nil, err
 	}
+	expense.PaidForMonth = month
 
-	// If already paid this month, return idempotently
-	if expense.IsPaidThisMonth() {
+	monthDate, err := time.Parse("2006-01", month)
+	if err != nil {
+		return nil, nil, errors.New("month must be YYYY-MM")
+	}
+	var existing models.RecurringExpensePayment
+	if s.db.Where("recurring_expense_id = ? AND month = ?", id, month).First(&existing).Error == nil {
 		return expense, nil, nil
 	}
-
-	now := time.Now()
+	dueDay := expense.DueDay
+	lastDay := time.Date(monthDate.Year(), monthDate.Month()+1, 0, 0, 0, 0, 0, monthDate.Location()).Day()
+	if dueDay > lastDay {
+		dueDay = lastDay
+	}
+	now := time.Date(monthDate.Year(), monthDate.Month(), dueDay, 12, 0, 0, 0, monthDate.Location())
 
 	// Create transaction
 	categoryName := ""
@@ -129,6 +160,9 @@ func (s *RecurringExpenseService) MarkPaid(id, workspaceID uint) (*models.Recurr
 		categoryName = expense.Category.Name
 	}
 
+	var user models.User
+	_ = s.db.Select("name").First(&user, userID).Error
+	owner := firstNonEmpty(expense.Owner, user.Name)
 	transaction := &models.Transaction{
 		WorkspaceID: workspaceID,
 		Date:        now,
@@ -136,7 +170,7 @@ func (s *RecurringExpenseService) MarkPaid(id, workspaceID uint) (*models.Recurr
 		Amount:      sql.NullFloat64{Float64: expense.Amount, Valid: true},
 		Type:        sql.NullString{String: "debit", Valid: true},
 		Category:    sql.NullString{String: categoryName, Valid: categoryName != ""},
-		Owner:       sql.NullString{String: expense.Owner, Valid: expense.Owner != ""},
+		Owner:       sql.NullString{String: owner, Valid: owner != ""},
 	}
 
 	// Use transaction to ensure atomicity
@@ -145,7 +179,10 @@ func (s *RecurringExpenseService) MarkPaid(id, workspaceID uint) (*models.Recurr
 			return err
 		}
 		expense.LastPaidDate = &now
-		return tx.Save(expense).Error
+		if err := tx.Save(expense).Error; err != nil {
+			return err
+		}
+		return tx.Create(&models.RecurringExpensePayment{RecurringExpenseID: id, Month: month, TransactionID: transaction.ID, PaidAt: now}).Error
 	})
 
 	if err != nil {

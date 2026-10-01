@@ -3,6 +3,7 @@ package models
 import "time"
 
 type RecurringExpense struct {
+	PaidForMonth string     `gorm:"-" json:"-"`
 	ID           uint       `gorm:"primaryKey" json:"id"`
 	WorkspaceID  uint       `gorm:"not null;index" json:"workspace_id"`
 	Name         string     `gorm:"size:255;not null" json:"name"`
@@ -16,8 +17,19 @@ type RecurringExpense struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
+type RecurringExpensePayment struct {
+	ID                 uint      `gorm:"primaryKey" json:"id"`
+	RecurringExpenseID uint      `gorm:"uniqueIndex:idx_recurring_month;not null" json:"recurring_expense_id"`
+	Month              string    `gorm:"size:7;uniqueIndex:idx_recurring_month;not null" json:"month"`
+	TransactionID      uint      `gorm:"not null" json:"transaction_id"`
+	PaidAt             time.Time `json:"paid_at"`
+}
+
 // IsPaidThisMonth checks if the expense was marked paid in the current month
 func (r *RecurringExpense) IsPaidThisMonth() bool {
+	if r.PaidForMonth != "" {
+		return r.LastPaidDate != nil && r.LastPaidDate.Format("2006-01") == r.PaidForMonth
+	}
 	if r.LastPaidDate == nil {
 		return false
 	}

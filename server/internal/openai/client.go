@@ -43,8 +43,8 @@ func (c *OpenAIClient) UploadFile(file *os.File) (string, error) {
 
 func (c *OpenAIClient) PromptResponse(prompt string, fileId string) (string, error) {
 	params := responses.ResponseNewParams{
-		Model:           openai.ChatModelGPT4o, // or a ResponsesModel like ResponsesModelO4Mini if available
-		MaxOutputTokens: openai.Int(16384),     // Increased to handle large statements
+		Model:           openai.ChatModel("gpt-4o-mini"),
+		MaxOutputTokens: openai.Int(16384),
 		Input: responses.ResponseNewParamsInputUnion{
 			OfInputItemList: responses.ResponseInputParam{
 				// One "message" that includes: file + text prompt

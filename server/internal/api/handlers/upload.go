@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"etl-banks-ar/internal/services"
 
@@ -28,8 +29,8 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 	}
 
 	// Validate file type
-	ext := filepath.Ext(file.Filename)
-	if ext != ".pdf" && ext != ".PDF" {
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if ext != ".pdf" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Only PDF files are supported"})
 		return
 	}

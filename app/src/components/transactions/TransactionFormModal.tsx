@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState, type Dispatch, type FormEvent, 
 import { format, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Area, Category } from '../../types';
+import { DateCalendar } from '../DateCalendar';
 import {
   isPredefinedCategory,
   normalizeCategory,
@@ -68,14 +69,12 @@ export function TransactionFormModal(props: TransactionFormModalProps): ReactEle
   } = props;
 
   const [showDateModal, setShowDateModal] = useState(false);
-  const [pendingDateStr, setPendingDateStr] = useState('');
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [createAnotherAfterSave, setCreateAnotherAfterSave] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setShowDateModal(false);
-      setPendingDateStr('');
       setShowCategorySuggestions(false);
       setCreateAnotherAfterSave(false);
     }
@@ -149,12 +148,11 @@ export function TransactionFormModal(props: TransactionFormModalProps): ReactEle
   };
 
   const openDateModal = (): void => {
-    setPendingDateStr(formData.date);
     setShowDateModal(true);
   };
 
-  const applyDateModal = (): void => {
-    setFormData((prev) => ({ ...prev, date: pendingDateStr || prev.date }));
+  const selectDate = (date: string): void => {
+    setFormData((prev) => ({ ...prev, date }));
     setShowDateModal(false);
   };
 
@@ -538,31 +536,26 @@ export function TransactionFormModal(props: TransactionFormModalProps): ReactEle
 
       {/* Date submodal */}
       {showDateModal ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
-          <div className="w-full max-w-sm rounded-2xl bg-surface-container-lowest p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-headline font-bold">Elegir fecha</h3>
-            <input
-              type="date"
-              value={pendingDateStr || formData.date}
-              onChange={(e) => setPendingDateStr(e.target.value)}
-              className="mb-6 w-full rounded-xl bg-surface-container-low px-4 py-3"
-            />
-            <div className="flex gap-3">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          onClick={cancelDateModal}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-surface-container-lowest p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-headline font-bold">Elegir fecha</h3>
               <button
                 type="button"
                 onClick={cancelDateModal}
-                className="flex-1 rounded-xl border border-surface-container py-3 font-medium hover:bg-surface-container-low"
+                aria-label="Cerrar"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container"
               >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={applyDateModal}
-                className="flex-1 rounded-xl bg-primary-container py-3 font-bold text-white hover:opacity-90"
-              >
-                Aplicar
+                <span className="material-symbols-outlined">close</span>
               </button>
             </div>
+            <DateCalendar value={formData.date} onSelect={selectDate} />
           </div>
         </div>
       ) : null}

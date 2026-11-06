@@ -21,6 +21,9 @@ function YearlyTreemapCell(props: {
   name?: string;
   value?: number;
   depth?: number;
+  fill?: string;
+  fillOpacity?: number;
+  currency?: string;
   payload?: {
     name?: string;
     size?: number;
@@ -33,6 +36,7 @@ function YearlyTreemapCell(props: {
   };
 }) {
   const { x, y, width, height, name, value, depth, payload } = props;
+  // Recharts spreads each data item's fields directly onto the cell props.
   if (x == null || y == null || width == null || height == null || width <= 0 || height <= 0) {
     return null;
   }
@@ -43,8 +47,8 @@ function YearlyTreemapCell(props: {
 
   const label = name || payload?.name || 'Uncategorized';
   const amount = value ?? payload?.size ?? 0;
-  const fill = payload?.fill || '#10b981';
-  const fillOpacity = payload?.fillOpacity || 0.98;
+  const fill = props.fill || payload?.fill || '#10b981';
+  const fillOpacity = props.fillOpacity ?? payload?.fillOpacity ?? 1;
   const fontSize = width > 140 && height > 90 ? 15 : 12;
   const amountFontSize = width > 140 && height > 90 ? 13 : 11;
   const showAmount = width > 90 && height > 54;
@@ -61,7 +65,7 @@ function YearlyTreemapCell(props: {
         ry={12}
         fill={fill}
         fillOpacity={fillOpacity}
-        stroke="#ffffff"
+        stroke="var(--color-surface-container-lowest)"
         strokeWidth={3}
       />
       <rect
@@ -80,7 +84,7 @@ function YearlyTreemapCell(props: {
       )}
       {showAmount && (
         <text x={x + 12} y={y + 44} fill="rgba(255,255,255,0.92)" fontSize={amountFontSize} fontWeight={600}>
-          {payload?.currency || '$'}{amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+          {props.currency || payload?.currency || '$'}{amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
         </text>
       )}
     </g>
@@ -148,7 +152,7 @@ export function InsightsPage() {
         .map((area, index) => ({
           name: area.area_name || 'Uncategorized',
           size: area.amount,
-          fillOpacity: 0.35 + (area.amount / Math.max(...yearlyAreas.map((item) => item.amount), 1)) * 0.65,
+          fillOpacity: 1,
           currency: isUSD ? 'US$' : '$',
           fill: area.area_id === null ? '#9ca3af' : (area.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]),
         }))

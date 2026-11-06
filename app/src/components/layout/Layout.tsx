@@ -13,6 +13,7 @@ const navItems = [
   { path: '/transactions', icon: 'receipt_long', label: 'Records' },
   { path: '/recurring-expenses', icon: 'event_repeat', label: 'Planned Spending' },
   { path: '/insights', icon: 'analytics', label: 'Insights' },
+  { path: '/chat', icon: 'forum', label: 'AI Chat' },
   { path: '/areas', icon: 'category', label: 'Areas' },
   { path: '/workspaces', icon: 'workspaces', label: 'Workspaces' },
 ];

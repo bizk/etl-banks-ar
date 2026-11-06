@@ -228,7 +228,7 @@ export function DashboardPage() {
                   <p className="text-sm text-on-surface-variant">Debits this month</p>
                   {comparison.spendingChange !== null && (
                     <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
-                      comparison.spendingChange <= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                      comparison.spendingChange <= 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
                     }`}>
                       {comparison.spendingChange > 0 ? '+' : ''}{comparison.spendingChange.toFixed(0)}%
                     </span>
@@ -254,7 +254,7 @@ export function DashboardPage() {
                   <p className="text-sm text-on-surface-variant">Credits this month</p>
                   {comparison.incomeChange !== null && (
                     <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
-                      comparison.incomeChange >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                      comparison.incomeChange >= 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
                     }`}>
                       {comparison.incomeChange > 0 ? '+' : ''}{comparison.incomeChange.toFixed(0)}%
                     </span>
@@ -264,7 +264,7 @@ export function DashboardPage() {
             </div>
 
             <div className={`p-8 rounded-xl flex flex-col justify-between min-h-[160px] ${
-              (summary?.net || 0) >= 0 ? 'bg-primary-container text-white' : 'bg-error text-white'
+              (summary?.net || 0) >= 0 ? 'bg-primary-container text-white' : 'bg-rose-600 text-white dark:bg-rose-700 dark:ring-1 dark:ring-rose-400/40'
             }`}>
               <div className="flex justify-between items-start">
                 <span className="text-sm font-semibold uppercase tracking-widest opacity-80">Net Balance</span>

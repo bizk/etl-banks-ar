@@ -11,6 +11,7 @@ import { useCurrency } from '../hooks/useCurrency';
 import { getString, getNumber, Transaction, Category } from '../types';
 import { parseCalendarDate } from '../utils/date';
 import { UploadPreviewModal } from '../components/transactions/UploadPreviewModal';
+import { BulkEditModal } from '../components/transactions/BulkEditModal';
 import {
   TransactionFormModal,
   type TransactionFormData,
@@ -31,10 +32,13 @@ export function TransactionsPage() {
   const currentDate = new Date(selectedMonth);
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(() => location.pathname === '/transactions/new');
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [showCategoryFilterMenu, setShowCategoryFilterMenu] = useState(false);
   const [categoryFilterSearch, setCategoryFilterSearch] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -66,15 +70,27 @@ export function TransactionsPage() {
 
   const month = format(currentDate, 'yyyy-MM');
   const queryClient = useQueryClient();
-  const hasActiveFilters = Boolean(categoryFilter.length > 0 || typeFilter || sortOrder !== 'desc');
+  const hasActiveFilters = Boolean(
+    categoryFilter.length > 0 || typeFilter || sortOrder !== 'desc' || dateFrom || dateTo
+  );
+  const monthStart = format(currentDate, 'yyyy-MM-01');
+  const monthEnd = format(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0), 'yyyy-MM-dd');
+
+  // Date range is scoped to the visible month; drop it when the month changes.
+  useEffect(() => {
+    setDateFrom('');
+    setDateTo('');
+  }, [month]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['transactions', currentWorkspace?.id, month, categoryFilter, typeFilter, sortOrder, page],
+    queryKey: ['transactions', currentWorkspace?.id, month, categoryFilter, typeFilter, dateFrom, dateTo, sortOrder, page],
     queryFn: () =>
       transactionsApi.list(currentWorkspace!.id, {
         month,
         category: categoryFilter.length > 0 ? categoryFilter : undefined,
         type: typeFilter || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
         sort: 'date',
         order: sortOrder,
         page,
@@ -256,6 +272,8 @@ export function TransactionsPage() {
     setCategoryFilterSearch('');
     setShowCategoryFilterMenu(false);
     setTypeFilter('');
+    setDateFrom('');
+    setDateTo('');
     setSortOrder('desc');
     setPage(1);
   };
@@ -283,9 +301,41 @@ export function TransactionsPage() {
         .map((category) => [normalizeCategory(category), category.trim() || 'Uncategorized'])
     ).values()
   );
-  const filteredCategoryFilterOptions = filterCategoryOptions.filter((category) =>
-    normalizeCategory(category).includes(normalizeCategory(categoryFilterSearch))
-  );
+  const categorySearch = normalizeCategory(categoryFilterSearch);
+  const byName = (a: string, b: string) => a.localeCompare(b, 'es', { sensitivity: 'base' });
+  const areaById = new Map(areas.map((area) => [area.id, area]));
+  const categoryAreaId = (name: string) => {
+    const areaId = categoryMap.get(normalizeCategory(name))?.area_id;
+    return areaId != null && areaById.has(areaId) ? areaId : null;
+  };
+  // Categories grouped under their area (areas and categories alphabetical); a search
+  // matching the area name keeps all of that area's categories.
+  const groupedCategoryFilterOptions = [
+    ...[...areas]
+      .sort((a, b) => byName(a.name, b.name))
+      .map((area) => ({ key: `area-${area.id}`, name: area.name, color: area.color, icon: area.icon, areaId: area.id as number | null })),
+    { key: 'area-none', name: 'Without area', color: '#9ca3af', icon: 'label_off', areaId: null as number | null },
+  ]
+    .map((group) => {
+      const areaMatches = group.areaId !== null && normalizeCategory(group.name).includes(categorySearch);
+      const items = filterCategoryOptions
+        .filter((category) => categoryAreaId(category) === group.areaId)
+        .filter((category) => areaMatches || normalizeCategory(category).includes(categorySearch))
+        .sort(byName);
+      return { ...group, items };
+    })
+    .filter((group) => group.items.length > 0);
+  const toggleAreaFilter = (items: string[]) => {
+    const selected = new Set(categoryFilter.map(normalizeCategory));
+    const allSelected = items.every((item) => selected.has(normalizeCategory(item)));
+    const itemKeys = new Set(items.map(normalizeCategory));
+    setCategoryFilter((current) =>
+      allSelected
+        ? current.filter((c) => !itemKeys.has(normalizeCategory(c)))
+        : [...current, ...items.filter((item) => !selected.has(normalizeCategory(item)))]
+    );
+    setPage(1);
+  };
   const toggleCategoryFilter = (category: string) => {
     const normalized = normalizeCategory(category);
     const isSelected = categoryFilter.some((selected) => normalizeCategory(selected) === normalized);
@@ -303,14 +353,14 @@ export function TransactionsPage() {
   return (
     <div>
       {/* Header */}
-      <header className="flex justify-between items-center mb-8">
+      <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div>
           <h1 className="text-4xl font-headline font-extrabold tracking-tight text-on-surface">Transactions</h1>
           <p className="text-on-surface-variant mt-2 font-medium opacity-60">
             Records for {format(currentDate, 'MMMM yyyy')}
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Month Navigator */}
           <div className="flex items-center gap-2 bg-surface-container-low rounded-full px-2">
             <button
@@ -327,6 +377,13 @@ export function TransactionsPage() {
               <span className="material-symbols-outlined">chevron_right</span>
             </button>
           </div>
+          <button
+            onClick={() => setShowBulkEditModal(true)}
+            className="bg-surface-container-low text-on-surface font-headline font-bold py-3 px-6 rounded-xl flex items-center gap-2 hover:bg-surface-container transition-colors"
+          >
+            <span className="material-symbols-outlined">edit_note</span>
+            Bulk Edit
+          </button>
           <button
             onClick={() => setShowUploadModal(true)}
             className="bg-surface-container-low text-on-surface font-headline font-bold py-3 px-6 rounded-xl flex items-center gap-2 hover:bg-surface-container transition-colors"
@@ -374,7 +431,7 @@ export function TransactionsPage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <h2 className="text-lg font-headline font-bold text-on-surface">Refine Records</h2>
-              <p className="text-sm text-on-surface-variant mt-1">Filter by category or type, and change chronological order.</p>
+              <p className="text-sm text-on-surface-variant mt-1">Filter by date, category or type, and change chronological order.</p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -482,35 +539,68 @@ export function TransactionsPage() {
                       )}
                     </div>
 
-                    <div className="mt-3 max-h-72 overflow-y-auto space-y-1">
-                      {filteredCategoryFilterOptions.length > 0 ? (
-                        filteredCategoryFilterOptions.map((category) => {
-                          const display = getCategoryDisplay(category);
-                          const isSelected = categoryFilter.some(
-                            (selected) => normalizeCategory(selected) === normalizeCategory(category)
-                          );
+                    <div className="mt-3 max-h-80 overflow-y-auto">
+                      {groupedCategoryFilterOptions.length > 0 ? (
+                        groupedCategoryFilterOptions.map((group) => {
+                          const selectedInGroup = group.items.filter((item) =>
+                            categoryFilter.some((selected) => normalizeCategory(selected) === normalizeCategory(item))
+                          ).length;
+                          const allSelected = selectedInGroup === group.items.length;
 
                           return (
-                            <button
-                              key={normalizeCategory(category)}
-                              onClick={() => toggleCategoryFilter(category)}
-                              className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition-colors ${
-                                isSelected ? 'bg-surface-container-low' : 'hover:bg-surface-container-low'
-                              }`}
-                            >
-                              <span className="flex min-w-0 items-center gap-3">
-                                <span
-                                  className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ${display.useCustomColor ? 'text-white ring-white/20' : display.badgeClassName}`}
-                                  style={display.useCustomColor ? { backgroundColor: display.color! } : undefined}
-                                >
-                                  <span className="material-symbols-outlined text-lg">{display.icon}</span>
+                            <div key={group.key} className="mb-2 last:mb-0">
+                              <div className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-surface-container-lowest px-2 py-2">
+                                <span className="flex min-w-0 items-center gap-2">
+                                  <span
+                                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                                    style={{ backgroundColor: group.color || '#9ca3af' }}
+                                  >
+                                    <span className="material-symbols-outlined text-sm text-white">{group.icon || 'category'}</span>
+                                  </span>
+                                  <span className="truncate text-xs font-bold uppercase tracking-[0.15em] text-on-surface-variant">
+                                    {group.name}
+                                  </span>
+                                  <span className="text-xs text-on-surface-variant opacity-60">{group.items.length}</span>
                                 </span>
-                                <span className="truncate text-sm font-medium">{category}</span>
-                              </span>
-                              <span className="material-symbols-outlined text-on-surface-variant">
-                                {isSelected ? 'check_circle' : 'add_circle'}
-                              </span>
-                            </button>
+                                <button
+                                  onClick={() => toggleAreaFilter(group.items)}
+                                  className="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
+                                >
+                                  {allSelected ? 'Unselect all' : 'Select all'}
+                                </button>
+                              </div>
+                              <div className="ml-3 space-y-1 border-l-2 pl-2" style={{ borderColor: group.color || '#9ca3af' }}>
+                                {group.items.map((category) => {
+                                  const display = getCategoryDisplay(category);
+                                  const isSelected = categoryFilter.some(
+                                    (selected) => normalizeCategory(selected) === normalizeCategory(category)
+                                  );
+
+                                  return (
+                                    <button
+                                      key={normalizeCategory(category)}
+                                      onClick={() => toggleCategoryFilter(category)}
+                                      className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition-colors ${
+                                        isSelected ? 'bg-surface-container-low' : 'hover:bg-surface-container-low'
+                                      }`}
+                                    >
+                                      <span className="flex min-w-0 items-center gap-3">
+                                        <span
+                                          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ${display.useCustomColor ? 'text-white ring-white/20' : display.badgeClassName}`}
+                                          style={display.useCustomColor ? { backgroundColor: display.color! } : undefined}
+                                        >
+                                          <span className="material-symbols-outlined text-base">{display.icon}</span>
+                                        </span>
+                                        <span className="truncate text-sm font-medium">{category}</span>
+                                      </span>
+                                      <span className={`material-symbols-outlined ${isSelected ? 'text-primary' : 'text-on-surface-variant'}`}>
+                                        {isSelected ? 'check_circle' : 'add_circle'}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           );
                         })
                       ) : (
@@ -553,6 +643,81 @@ export function TransactionsPage() {
                   );
                 })}
               </div>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-on-surface-variant opacity-60 mb-3">
+              Dates
+            </p>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-on-surface-variant">
+                From
+                <input
+                  type="date"
+                  value={dateFrom}
+                  min={monthStart}
+                  max={dateTo || monthEnd}
+                  onChange={(e) => {
+                    setDateFrom(e.target.value);
+                    setPage(1);
+                  }}
+                  className="rounded-xl bg-surface-container-low px-4 py-2.5 text-sm font-medium text-on-surface outline-none ring-1 ring-inset ring-transparent focus:ring-primary-container dark:[color-scheme:dark]"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-on-surface-variant">
+                To
+                <input
+                  type="date"
+                  value={dateTo}
+                  min={dateFrom || monthStart}
+                  max={monthEnd}
+                  onChange={(e) => {
+                    setDateTo(e.target.value);
+                    setPage(1);
+                  }}
+                  className="rounded-xl bg-surface-container-low px-4 py-2.5 text-sm font-medium text-on-surface outline-none ring-1 ring-inset ring-transparent focus:ring-primary-container dark:[color-scheme:dark]"
+                />
+              </label>
+              {[
+                { label: 'Today', from: format(new Date(), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') },
+                { label: '1-15', from: monthStart, to: format(currentDate, 'yyyy-MM-15') },
+                { label: '16-end', from: format(currentDate, 'yyyy-MM-16'), to: monthEnd },
+              ]
+                .filter((preset) => preset.from >= monthStart && preset.to <= monthEnd)
+                .map((preset) => {
+                  const isActive = dateFrom === preset.from && dateTo === preset.to;
+                  return (
+                    <button
+                      key={preset.label}
+                      onClick={() => {
+                        setDateFrom(isActive ? '' : preset.from);
+                        setDateTo(isActive ? '' : preset.to);
+                        setPage(1);
+                      }}
+                      className={`rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${
+                        isActive
+                          ? 'bg-primary-container text-white'
+                          : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              {(dateFrom || dateTo) && (
+                <button
+                  onClick={() => {
+                    setDateFrom('');
+                    setDateTo('');
+                    setPage(1);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full px-3 py-2.5 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low"
+                >
+                  <span className="material-symbols-outlined text-base">close</span>
+                  Whole month
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -696,6 +861,22 @@ export function TransactionsPage() {
         workspaceId={currentWorkspace.id}
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}
+      />
+
+      {/* Bulk Edit Modal */}
+      <BulkEditModal
+        workspaceId={currentWorkspace.id}
+        isOpen={showBulkEditModal}
+        onClose={() => setShowBulkEditModal(false)}
+        filters={{
+          month,
+          category: categoryFilter.length > 0 ? categoryFilter : undefined,
+          type: typeFilter || undefined,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+        }}
+        categories={categories}
+        areas={areas}
       />
     </div>
   );

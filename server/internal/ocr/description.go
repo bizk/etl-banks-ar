@@ -2,6 +2,7 @@ package ocr
 
 import (
 	"strings"
+	"unicode"
 )
 
 var movementPhraseRemovals = []string{
@@ -66,4 +67,35 @@ func trimOuterNoise(s string) string {
 	s = trimLeadingNoise(s)
 	s = trimTrailingNoise(s)
 	return s
+}
+
+// WithCounterparty appends who the money went to (debits) or came from (credits)
+// to a movement description, unless the description already names them.
+func WithCounterparty(description, counterparty, txType string) string {
+	desc := strings.TrimSpace(description)
+	cp := strings.Join(strings.Fields(counterparty), " ")
+	if cp == "" || strings.Contains(foldForMatch(desc), foldForMatch(cp)) {
+		return desc
+	}
+
+	direction := "a"
+	if strings.EqualFold(strings.TrimSpace(txType), "credit") {
+		direction = "de"
+	}
+	if desc == "" {
+		return cp
+	}
+	return desc + " - " + direction + " " + cp
+}
+
+// foldForMatch lowercases and drops punctuation/spacing so "Pérez, Juan" style
+// differences in spacing or separators don't cause duplicated names.
+func foldForMatch(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

@@ -11,6 +11,8 @@ interface TransactionFilters {
   month: string;
   category?: string[];
   type?: string;
+  date_from?: string;
+  date_to?: string;
   sort?: string;
   order?: 'asc' | 'desc';
   page?: number;
@@ -46,6 +48,8 @@ export const transactionsApi = {
       }
     });
     if (filters.type) params.append('type', filters.type);
+    if (filters.date_from) params.append('date_from', filters.date_from);
+    if (filters.date_to) params.append('date_to', filters.date_to);
     if (filters.sort) params.append('sort', filters.sort);
     if (filters.order) params.append('order', filters.order);
     if (filters.page) params.append('page', filters.page.toString());
@@ -76,6 +80,17 @@ export const transactionsApi = {
     const response = await apiClient.put<{ transaction: Transaction }>(
       `/workspaces/${workspaceId}/transactions/${id}`,
       data
+    );
+    return response.data;
+  },
+
+  bulkUpdate: async (
+    workspaceId: number,
+    transactions: Array<UpdateTransactionInput & { id: number }>
+  ): Promise<{ updated: number; transactions: Transaction[] }> => {
+    const response = await apiClient.patch<{ updated: number; transactions: Transaction[] }>(
+      `/workspaces/${workspaceId}/transactions`,
+      { transactions }
     );
     return response.data;
   },

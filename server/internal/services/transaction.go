@@ -21,6 +21,8 @@ func NewTransactionService(db *gorm.DB) *TransactionService {
 type TransactionFilter struct {
 	WorkspaceID uint
 	Month       string // YYYY-MM format
+	DateFrom    string // optional YYYY-MM-DD, inclusive
+	DateTo      string // optional YYYY-MM-DD, inclusive
 	Categories  []string
 	Type        string
 	Page        int
@@ -53,6 +55,14 @@ func (s *TransactionService) List(filter TransactionFilter) (*PaginatedTransacti
 			endDate := startDate.AddDate(0, 1, 0)
 			query = query.Where("date >= ? AND date < ?", startDate, endDate)
 		}
+	}
+
+	// Filter by explicit date range (inclusive on both ends)
+	if from, err := time.Parse("2006-01-02", filter.DateFrom); err == nil {
+		query = query.Where("date >= ?", from)
+	}
+	if to, err := time.Parse("2006-01-02", filter.DateTo); err == nil {
+		query = query.Where("date < ?", to.AddDate(0, 0, 1))
 	}
 
 	// Filter by category

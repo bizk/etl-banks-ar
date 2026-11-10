@@ -58,25 +58,34 @@ How it works: `app/src/local` (local database and the calculations the server do
 `app/src/sync/engine.ts` (push/pull cycle), `server/internal/services/sync.go`
 (`GET /workspaces/:id/sync`, `POST /workspaces/:id/sync/push`).
 
-### Using it from a phone over Tailscale
+### Using it from a phone
 
-A PWA can only be installed and work offline when served over HTTPS. Tailscale provides
-that inside the tailnet, with no ports opened to the internet:
+Open the server's address in Chrome on the phone, sign in, and let the first sync finish.
+If the server's address changes later, set the new one in the app: **Server** on the login
+screen, or the server icon in the menu.
 
-1. In the Tailscale admin console, enable **MagicDNS** and **HTTPS certificates**.
-2. On the server, publish the UI (which already proxies `/api/`) on the tailnet:
+How well "offline" works depends on how the app is reached, because browsers only allow
+service workers (what lets the app start with no network, and be installed) on secure
+origins:
 
-   ```bash
-   sudo tailscale serve --bg 80        # use your UI_PORT if it is not 80
-   tailscale serve status              # prints https://<host>.<tailnet>.ts.net
-   ```
+| Opened as | Works online | Keeps data and queues changes offline | Starts with no network, installable |
+|---|---|---|---|
+| `http://<lan-ip>:<port>` | yes | yes, while the tab stays open | no |
+| `https://<name>` with a certificate the phone trusts | yes | yes | yes |
 
-3. Set `BASE_URL=https://<host>.<tailnet>.ts.net` for the API so invite links point there.
-4. On the phone, with Tailscale connected, open that URL in Chrome, sign in, and choose
-   **Install app** / **Add to Home screen**. The first sync downloads the workspace.
+Ways to get the second row on a home network:
 
-After that the app opens and works with Tailscale off or with no signal, and catches up by
-itself the next time the server is reachable.
+- **A local HTTPS name.** Put the UI behind a reverse proxy that serves HTTPS with its own
+  CA (for example Caddy with `tls internal`), give it a name in the local DNS, and install
+  that CA's root certificate on the phone (Android: Settings → Security → Install a
+  certificate → CA certificate). Then open `https://<name>` and choose **Install app**.
+- **Tailscale.** Enable MagicDNS and HTTPS certificates in the admin console, run
+  `sudo tailscale serve --bg <ui-port>` on the server, and open the
+  `https://<host>.<tailnet>.ts.net` address it prints. Also works away from home.
+- **A Chrome flag, for one phone.** In `chrome://flags`, add `http://<lan-ip>:<port>` to
+  *Insecure origins treated as secure* and relaunch Chrome.
+
+Set `BASE_URL` for the API to whichever address people use, so invite links point there.
 
 ### Trying it locally
 

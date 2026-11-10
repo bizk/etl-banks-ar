@@ -55,5 +55,11 @@ func (s *ExchangeRateService) Upsert(workspaceID uint, month string, rate float6
 }
 
 func (s *ExchangeRateService) Delete(workspaceID uint, month string) error {
-	return s.db.Where("workspace_id = ? AND month = ?", workspaceID, month).Delete(&models.ExchangeRate{}).Error
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		res := tx.Where("workspace_id = ? AND month = ?", workspaceID, month).Delete(&models.ExchangeRate{})
+		if res.Error != nil || res.RowsAffected == 0 {
+			return res.Error
+		}
+		return tx.Create(&models.SyncTombstone{WorkspaceID: workspaceID, Entity: models.SyncEntityExchangeRate, Ref: month}).Error
+	})
 }

@@ -290,9 +290,9 @@ export function AreasPage() {
   return (
     <div>
       {/* Header */}
-      <header className="flex justify-between items-center mb-8">
+      <header className="px-4 md:px-0 flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-4xl font-headline font-extrabold tracking-tight text-on-surface">
+          <h1 className="text-2xl md:text-4xl font-headline font-extrabold tracking-tight text-on-surface">
             Areas & Categories
           </h1>
           <p className="text-on-surface-variant mt-2 font-medium opacity-60">
@@ -426,8 +426,8 @@ export function AreasPage() {
 
       {/* Area Modal */}
       {showAreaModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface-container-lowest rounded-2xl p-8 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50">
+          <div className="bg-surface-container-lowest rounded-t-2xl sm:rounded-2xl p-5 sm:p-8 w-full sm:max-w-md max-h-[92dvh] overflow-y-auto">
             <h2 className="text-xl font-headline font-bold mb-6">
               {editingArea ? 'Edit Area' : 'New Area'}
             </h2>
@@ -505,8 +505,8 @@ export function AreasPage() {
 
       {/* Category Modal */}
       {showCategoryModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface-container-lowest rounded-2xl p-8 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50">
+          <div className="bg-surface-container-lowest rounded-t-2xl sm:rounded-2xl p-5 sm:p-8 w-full sm:max-w-md max-h-[92dvh] overflow-y-auto">
             <h2 className="text-xl font-headline font-bold mb-6">
               {editingCategory ? 'Edit Category' : 'New Category'}
             </h2>

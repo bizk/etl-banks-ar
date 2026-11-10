@@ -37,7 +37,7 @@ func (s *AreaService) Update(area *models.Area) error {
 }
 
 func (s *AreaService) Delete(id, workspaceID uint) error {
-	return s.db.Where("id = ? AND workspace_id = ?", id, workspaceID).Delete(&models.Area{}).Error
+	return deleteWithTombstone(s.db, &models.Area{}, models.SyncEntityArea, workspaceID, "id = ?", id, detachArea)
 }
 
 type AreaCategorySummary struct {

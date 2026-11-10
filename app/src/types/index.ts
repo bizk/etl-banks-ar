@@ -43,6 +43,8 @@ export interface Transaction {
   user_confirmed: boolean;
   created_at: string;
   updated_at: string;
+  /** Created on this device and not yet stored by the server. */
+  pending?: boolean;
 }
 
 export interface Pagination {

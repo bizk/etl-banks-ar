@@ -4,6 +4,7 @@ import "time"
 
 type Area struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
+	ClientID    string    `gorm:"size:36;uniqueIndex" json:"client_id"`
 	WorkspaceID uint      `gorm:"not null;index" json:"workspace_id"`
 	Name        string    `gorm:"size:255;not null" json:"name"`
 	Color       string    `gorm:"size:50" json:"color"`

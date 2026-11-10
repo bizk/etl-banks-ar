@@ -35,6 +35,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	recurringExpenseHandler := handlers.NewRecurringExpenseHandler(recurringExpenseService)
 	exchangeRateHandler := handlers.NewExchangeRateHandler(exchangeRateService)
 	chatHandler := handlers.NewChatHandler(chatService)
+	syncHandler := handlers.NewSyncHandler(services.NewSyncService(db, recurringExpenseService))
 
 	// API v1
 	v1 := router.Group("/api/v1")
@@ -52,6 +53,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		{
 			// Auth
 			protected.GET("/auth/me", authHandler.Me)
+			protected.POST("/auth/refresh", authHandler.Refresh)
 
 			// Workspaces
 			workspaces := protected.Group("/workspaces")
@@ -115,6 +117,10 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 					workspace.GET("/exchange-rates/:month", exchangeRateHandler.Get)
 					workspace.PUT("/exchange-rates/:month", exchangeRateHandler.Upsert)
 					workspace.DELETE("/exchange-rates/:month", exchangeRateHandler.Delete)
+
+					// Offline sync
+					workspace.GET("/sync", syncHandler.Pull)
+					workspace.POST("/sync/push", syncHandler.Push)
 
 					workspace.GET("/chat/conversations", chatHandler.ListConversations)
 					workspace.POST("/chat/conversations", chatHandler.CreateConversation)

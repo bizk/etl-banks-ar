@@ -284,8 +284,8 @@ export function TransactionFormModal(props: TransactionFormModalProps): ReactEle
   return (
     <>
       {/* Transaction modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="w-full max-w-md rounded-2xl bg-surface-container-lowest p-8">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
+        <div className="w-full sm:max-w-md max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-surface-container-lowest p-5 sm:p-8">
           <h2 className="mb-6 text-xl font-headline font-bold">
             {editingId ? 'Editar transacción' : 'Nueva transacción'}
           </h2>

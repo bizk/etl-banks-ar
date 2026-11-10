@@ -178,12 +178,9 @@ export function DashboardPage() {
 
   return (
     <div>
-      <header className="flex justify-between items-center mb-12">
+      <header className="flex justify-between items-center px-4 md:px-0 mb-4 md:mb-12">
         <div>
-          <h1 className="text-4xl font-headline font-extrabold tracking-tight text-on-surface">Overview</h1>
-          <p className="text-on-surface-variant mt-2 font-medium opacity-60">
-            Monthly spending and overall view for {format(currentDate, 'MMMM yyyy')}
-          </p>
+          <h1 className="text-2xl md:text-4xl font-headline font-extrabold tracking-tight text-on-surface">Overview</h1>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-surface-container-low rounded-full px-2">
@@ -211,7 +208,7 @@ export function DashboardPage() {
       ) : (
         <>
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div className="bg-surface-container-lowest p-8 rounded-xl flex flex-col justify-between min-h-[160px]">
+            <div className="bg-surface-container-lowest p-5 md:p-8 rounded-xl flex flex-col justify-between min-h-[160px]">
               <div className="flex justify-between items-start">
                 <span className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant opacity-50">
                   Gastos Mensuales
@@ -221,7 +218,7 @@ export function DashboardPage() {
                 </span>
               </div>
               <div className="mt-4">
-                <p className="text-4xl font-headline font-extrabold">
+                <p className="text-2xl md:text-4xl font-headline font-extrabold">
                   {formatAmount(summary?.total_spending || 0, month)}
                 </p>
                 <div className="flex items-center gap-2 mt-2">
@@ -237,7 +234,7 @@ export function DashboardPage() {
               </div>
             </div>
 
-            <div className="bg-surface-container-lowest p-8 rounded-xl flex flex-col justify-between min-h-[160px]">
+            <div className="bg-surface-container-lowest p-5 md:p-8 rounded-xl flex flex-col justify-between min-h-[160px]">
               <div className="flex justify-between items-start">
                 <span className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant opacity-50">
                   Ingresos
@@ -247,7 +244,7 @@ export function DashboardPage() {
                 </div>
               </div>
               <div className="mt-4">
-                <p className="text-4xl font-headline font-extrabold">
+                <p className="text-2xl md:text-4xl font-headline font-extrabold">
                   {formatAmount(summary?.total_income || 0, month)}
                 </p>
                 <div className="flex items-center gap-2 mt-2">
@@ -263,7 +260,7 @@ export function DashboardPage() {
               </div>
             </div>
 
-            <div className={`p-8 rounded-xl flex flex-col justify-between min-h-[160px] ${
+            <div className={`p-5 md:p-8 rounded-xl flex flex-col justify-between min-h-[160px] ${
               (summary?.net || 0) >= 0 ? 'bg-primary-container text-white' : 'bg-rose-600 text-white dark:bg-rose-700 dark:ring-1 dark:ring-rose-400/40'
             }`}>
               <div className="flex justify-between items-start">
@@ -273,7 +270,7 @@ export function DashboardPage() {
                 </span>
               </div>
               <div className="mt-4">
-                <p className="text-4xl font-headline font-extrabold">
+                <p className="text-2xl md:text-4xl font-headline font-extrabold">
                   {formatAmount(Math.abs(summary?.net || 0), month)}
                 </p>
                 <p className="text-sm opacity-80 mt-2">
@@ -284,7 +281,7 @@ export function DashboardPage() {
           </section>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-            <section className="bg-surface-container-lowest p-8 rounded-xl">
+            <section className="bg-surface-container-lowest p-5 md:p-8 rounded-xl">
               <h3 className="text-xl font-headline font-bold mb-8">Spending by Area</h3>
               {pieChartData.length > 0 ? (
                 <div className="h-64">
@@ -339,7 +336,7 @@ export function DashboardPage() {
               </div>
             </section>
 
-            <section className="bg-surface-container-lowest p-8 rounded-xl">
+            <section className="bg-surface-container-lowest p-5 md:p-8 rounded-xl">
               <h3 className="text-xl font-headline font-bold mb-8">Weekly Spending Trend</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -380,7 +377,7 @@ export function DashboardPage() {
             </section>
           </div>
 
-          <section className="bg-surface-container-lowest p-8 rounded-xl">
+          <section className="bg-surface-container-lowest p-5 md:p-8 rounded-xl">
             <h3 className="text-xl font-headline font-bold mb-8">Spending by Area</h3>
             <div className="space-y-4">
               {sortedAreas.map((area, areaIndex) => {

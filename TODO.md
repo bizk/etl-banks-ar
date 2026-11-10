@@ -2,7 +2,7 @@ Important
 - [x] Add scripts for auto deploy
 - [ ] Add backups for sql data
 - [ ] Overview show spending only, not creddit
-- [ ] Mobile 
+- [x] Mobile (installable PWA with offline sync, see README)
 - [x] Update prompts / categories -> 
   - [x] improve etl on past db stuff
 

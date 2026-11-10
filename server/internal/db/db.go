@@ -45,9 +45,14 @@ func Migrate() {
 		&models.ExchangeRate{},
 		&models.ChatConversation{},
 		&models.ChatMessage{},
+		&models.SyncTombstone{},
 	)
 	if err != nil {
 		panic(fmt.Sprintf("failed to migrate database: %v", err))
+	}
+
+	if err := services.BackfillSyncColumns(db); err != nil {
+		panic(fmt.Sprintf("failed to backfill sync columns: %v", err))
 	}
 
 	categoryService := services.NewCategoryService(db)

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useIsOffline } from '../store/syncSlice';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addMonths, subMonths } from 'date-fns';
@@ -21,6 +22,15 @@ import {
   normalizeCategory,
 } from '../components/transactions/categoryMeta';
 
+/** Marks a record that exists only on this device until the next sync. */
+function PendingMark() {
+  return (
+    <span className="material-symbols-outlined shrink-0 text-sm text-on-surface-variant" title="Not synced yet">
+      cloud_upload
+    </span>
+  );
+}
+
 export function TransactionsPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -29,6 +39,7 @@ export function TransactionsPage() {
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
   const currentUser = useAuthStore((state) => state.user);
   const { formatAmount } = useCurrency();
+  const isOffline = useIsOffline();
   const currentDate = new Date(selectedMonth);
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState('');
@@ -40,6 +51,8 @@ export function TransactionsPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [showCategoryFilterMenu, setShowCategoryFilterMenu] = useState(false);
+  // Phone only: the filters stay folded away until asked for.
+  const [showFilters, setShowFilters] = useState(false);
   const [categoryFilterSearch, setCategoryFilterSearch] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<TransactionFormData>({
@@ -353,47 +366,45 @@ export function TransactionsPage() {
   return (
     <div>
       {/* Header */}
-      <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-4xl font-headline font-extrabold tracking-tight text-on-surface">Transactions</h1>
-          <p className="text-on-surface-variant mt-2 font-medium opacity-60">
-            Records for {format(currentDate, 'MMMM yyyy')}
-          </p>
+      {/* Phone: title and month on one row, actions centred below. Desktop: one row. */}
+      <header className="flex flex-wrap items-center justify-between gap-3 px-4 mb-6 md:gap-4 md:px-0 md:mb-8">
+        <h1 className="text-2xl md:text-4xl font-headline font-extrabold tracking-tight text-on-surface">Transactions</h1>
+        {/* Month Navigator */}
+        <div className="flex items-center gap-1 bg-surface-container-low rounded-full px-2 md:ml-auto md:gap-2">
+          <button
+            onClick={handlePrevMonth}
+            className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors"
+          >
+            <span className="material-symbols-outlined">chevron_left</span>
+          </button>
+          <span className="font-headline font-bold px-2 md:px-4">{format(currentDate, 'MMM yyyy')}</span>
+          <button
+            onClick={handleNextMonth}
+            className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors"
+          >
+            <span className="material-symbols-outlined">chevron_right</span>
+          </button>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Month Navigator */}
-          <div className="flex items-center gap-2 bg-surface-container-low rounded-full px-2">
-            <button
-              onClick={handlePrevMonth}
-              className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors"
-            >
-              <span className="material-symbols-outlined">chevron_left</span>
-            </button>
-            <span className="font-headline font-bold px-4">{format(currentDate, 'MMM yyyy')}</span>
-            <button
-              onClick={handleNextMonth}
-              className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors"
-            >
-              <span className="material-symbols-outlined">chevron_right</span>
-            </button>
-          </div>
+        <div className="flex w-full flex-wrap items-center justify-center gap-3 md:w-auto">
           <button
             onClick={() => setShowBulkEditModal(true)}
-            className="bg-surface-container-low text-on-surface font-headline font-bold py-3 px-6 rounded-xl flex items-center gap-2 hover:bg-surface-container transition-colors"
+            className="bg-surface-container-low text-on-surface font-headline font-bold py-3 px-6 rounded-xl hidden md:flex items-center gap-2 hover:bg-surface-container transition-colors"
           >
             <span className="material-symbols-outlined">edit_note</span>
             Bulk Edit
           </button>
           <button
             onClick={() => setShowUploadModal(true)}
-            className="bg-surface-container-low text-on-surface font-headline font-bold py-3 px-6 rounded-xl flex items-center gap-2 hover:bg-surface-container transition-colors"
+            disabled={isOffline}
+            title={isOffline ? 'Importing a statement needs a connection to the server' : undefined}
+            className="bg-surface-container-low text-on-surface font-headline font-bold py-3 px-6 rounded-xl flex items-center gap-2 hover:bg-surface-container transition-colors disabled:opacity-50"
           >
             <span className="material-symbols-outlined">upload_file</span>
             Upload PDF
           </button>
           <button
             onClick={openCreateModal}
-            className="bg-primary-container text-white font-headline font-bold py-3 px-6 rounded-xl flex items-center gap-2 hover:opacity-90 transition-opacity"
+            className="bg-primary-container text-white font-headline font-bold py-3 px-6 rounded-xl hidden md:flex items-center gap-2 hover:opacity-90 transition-opacity"
           >
             <span className="material-symbols-outlined">add</span>
             Add Transaction
@@ -403,7 +414,7 @@ export function TransactionsPage() {
 
       {/* Summary Bar */}
       {summary && (
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
           <div className="bg-surface-container-lowest p-4 rounded-xl">
             <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Debits</p>
             <p className="text-xl font-bold text-error">
@@ -426,7 +437,18 @@ export function TransactionsPage() {
       )}
 
       {/* Filters */}
-      <section className="bg-surface-container-lowest rounded-2xl p-5 mb-6">
+      <button
+        type="button"
+        onClick={() => setShowFilters((open) => !open)}
+        aria-expanded={showFilters}
+        className="mx-4 mb-4 flex w-[calc(100%-2rem)] items-center justify-center gap-2 rounded-xl border border-primary-container bg-primary/10 px-4 py-3 text-sm font-bold text-primary md:hidden"
+      >
+        <span className="material-symbols-outlined text-base">tune</span>
+        Filters
+        {hasActiveFilters && <span className="h-2 w-2 rounded-full bg-primary-container" aria-label="Filters applied" />}
+        <span className="material-symbols-outlined text-base">{showFilters ? 'expand_less' : 'expand_more'}</span>
+      </button>
+      <section className={`bg-surface-container-lowest rounded-2xl p-5 mb-6 ${showFilters ? '' : 'hidden md:block'}`}>
         <div className="flex flex-col gap-5">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
@@ -735,7 +757,42 @@ export function TransactionsPage() {
             <p>No transactions found</p>
           </div>
         ) : (
-          <table className="w-full">
+          <>
+          {/* Phone: one card per record */}
+          <ul className="divide-y divide-surface-container-low md:hidden">
+            {transactions.map((t) => {
+              const type = getString(t.type);
+              const category = getString(t.category);
+              const display = getCategoryDisplay(category);
+              return (
+                <li key={t.id} className="flex items-center gap-3 px-4 py-3">
+                  <span
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${display.useCustomColor ? 'text-white' : display.badgeClassName}`}
+                    style={display.useCustomColor ? { backgroundColor: display.color! } : undefined}
+                  >
+                    <span className="material-symbols-outlined text-xl">{display.icon}</span>
+                  </span>
+                  <button type="button" onClick={() => openEditModal(t)} className="min-w-0 flex-1 text-left">
+                    <p className="flex items-center gap-1 truncate text-sm font-medium">
+                      <span className="truncate">{getString(t.description) || category || 'Uncategorized'}</span>
+                      {t.pending && <PendingMark />}
+                    </p>
+                    <p className="truncate text-xs text-on-surface-variant">
+                      {format(parseCalendarDate(t.date), 'MMM dd')} · {category || 'Uncategorized'}
+                      {getString(t.owner) && ` · ${getString(t.owner)}`}
+                    </p>
+                  </button>
+                  <span className={`shrink-0 text-sm font-bold ${type === 'credit' ? 'text-primary' : 'text-error'}`}>
+                    {type === 'credit' ? '+' : '-'}{formatAmount(getNumber(t.amount), format(parseCalendarDate(t.date), 'yyyy-MM'))}
+                  </span>
+                  <button type="button" onClick={() => handleDelete(t.id)} className="shrink-0 p-1 text-on-surface-variant" aria-label="Delete">
+                    <span className="material-symbols-outlined text-xl">delete</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <table className="hidden w-full md:table">
             <thead className="bg-surface-container-low">
               <tr>
                 <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
@@ -775,7 +832,9 @@ export function TransactionsPage() {
                 return (
                   <tr key={t.id} className="hover:bg-surface-container-low/50">
                     <td className="px-6 py-4 text-sm">{format(parseCalendarDate(t.date), 'MMM dd, yyyy')}</td>
-                    <td className="px-6 py-4 text-sm font-medium">{getString(t.description)}</td>
+                    <td className="px-6 py-4 text-sm font-medium">
+                      <span className="inline-flex items-center gap-1">{getString(t.description)}{t.pending && <PendingMark />}</span>
+                    </td>
                     <td className="px-6 py-4">
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${display.useCustomColor ? 'text-white ring-white/20' : display.badgeClassName}`}
@@ -815,6 +874,7 @@ export function TransactionsPage() {
               })}
             </tbody>
           </table>
+          </>
         )}
       </div>
 

@@ -194,18 +194,18 @@ export function RecurringExpensesPage() {
   return (
     <div>
       {/* Header */}
-      <header className="mb-8">
-        <h1 className="text-4xl font-headline font-extrabold tracking-tight text-on-surface">Recurring Expenses</h1>
+      <header className="px-4 md:px-0 mb-8">
+        <h1 className="text-2xl md:text-4xl font-headline font-extrabold tracking-tight text-on-surface">Recurring Expenses</h1>
         <div className="mt-2 flex items-center gap-3 text-on-surface-variant">
           <button type="button" aria-label="Previous month" onClick={() => setSelectedMonth(subMonths(selectedMonthDate, 1))}><span className="material-symbols-outlined">chevron_left</span></button>
-          <p className="font-medium">Planned spending for {format(selectedMonthDate, 'MMMM yyyy')}</p>
+          <p className="font-medium">{format(selectedMonthDate, 'MMMM yyyy')}</p>
           <button type="button" aria-label="Next month" onClick={() => setSelectedMonth(addMonths(selectedMonthDate, 1))}><span className="material-symbols-outlined">chevron_right</span></button>
         </div>
       </header>
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
           <div className="bg-surface-container-lowest p-4 rounded-xl">
             <p className="text-xs uppercase tracking-wider text-on-surface-variant mb-1">Total Monthly</p>
             <p className="text-xl font-bold">
@@ -245,7 +245,47 @@ export function RecurringExpensesPage() {
             <p>No recurring expenses yet</p>
           </div>
         ) : (
-          <table className="w-full">
+          <>
+          {/* Phone: one card per expense */}
+          <ul className="divide-y divide-surface-container-low md:hidden">
+            {expenses.map((expense) => {
+              const display = getCategoryDisplay(expense.category_id, expense.category_name);
+              return (
+                <li key={expense.id} className="space-y-2 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => openEditModal(expense)} className="min-w-0 flex-1 text-left">
+                      <p className="truncate text-sm font-medium">{expense.name}</p>
+                      <p className="truncate text-xs text-on-surface-variant">
+                        Due day {expense.due_day}{display && ` · ${display.name}`}
+                      </p>
+                    </button>
+                    <span className="shrink-0 text-sm font-bold">
+                      ${expense.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </span>
+                    <button type="button" onClick={() => handleDelete(expense.id)} className="shrink-0 p-1 text-on-surface-variant" aria-label="Delete">
+                      <span className="material-symbols-outlined text-xl">delete</span>
+                    </button>
+                  </div>
+                  {expense.is_paid_this_month ? (
+                    <p className="flex items-center gap-1 text-xs font-medium text-primary">
+                      <span className="material-symbols-outlined text-sm">check_circle</span>
+                      Paid{expense.last_paid_date && ` · ${format(new Date(expense.last_paid_date), 'MMM d')}`}
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => markPaidMutation.mutate(expense.id)}
+                      disabled={markPaidMutation.isPending}
+                      className="w-full rounded-lg bg-primary py-2 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      Mark Paid
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <table className="hidden w-full md:table">
             <thead className="bg-surface-container-low">
               <tr>
                 <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">Name</th>
@@ -326,6 +366,7 @@ export function RecurringExpensesPage() {
               })}
             </tbody>
           </table>
+          </>
         )}
 
         {/* Add Button */}
@@ -342,8 +383,8 @@ export function RecurringExpensesPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface-container-lowest rounded-2xl p-8 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50">
+          <div className="bg-surface-container-lowest rounded-t-2xl sm:rounded-2xl p-5 sm:p-8 w-full sm:max-w-md max-h-[92dvh] overflow-y-auto">
             <h2 className="text-xl font-headline font-bold mb-6">
               {editingId ? 'Edit Recurring Expense' : 'New Recurring Expense'}
             </h2>

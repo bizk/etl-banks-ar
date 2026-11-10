@@ -12,6 +12,7 @@ type BankMovements struct {
 
 type Transaction struct {
 	ID            uint            `gorm:"primaryKey" json:"id"`
+	ClientID      string          `gorm:"size:36;uniqueIndex" json:"client_id"`
 	WorkspaceID   uint            `gorm:"not null;index" json:"workspace_id"`
 	Workspace     Workspace       `gorm:"foreignKey:WorkspaceID" json:"-"`
 	Date          time.Time       `json:"date"`

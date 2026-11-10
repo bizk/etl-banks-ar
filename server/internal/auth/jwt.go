@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"strconv"
 	"time"
 
 	"etl-banks-ar/internal/configs"
@@ -15,6 +16,18 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+// defaultTokenLifetimeHours is long on purpose: an offline-first client may not reach the
+// server for days and must still be able to push its queued changes when it does.
+const defaultTokenLifetimeHours = 30 * 24
+
+func tokenLifetime() time.Duration {
+	hours, err := strconv.Atoi(configs.GetEnvOrDefault("JWT_EXPIRY_HOURS", ""))
+	if err != nil || hours <= 0 {
+		hours = defaultTokenLifetimeHours
+	}
+	return time.Duration(hours) * time.Hour
+}
+
 func GenerateToken(userID uint, email string) (string, error) {
 	secret := configs.GetEnvOrDefault("JWT_SECRET", "your-secret-key")
 
@@ -22,7 +35,7 @@ func GenerateToken(userID uint, email string) (string, error) {
 		UserID: userID,
 		Email:  email,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenLifetime())),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}

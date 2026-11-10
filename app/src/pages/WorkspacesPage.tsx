@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { OfflineNotice } from '../components/SyncIndicator';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { workspacesApi } from '../api/workspaces';
 import { useWorkspaceStore } from '../store/workspaceSlice';
@@ -89,10 +90,11 @@ export function WorkspacesPage() {
 
   return (
     <div>
+      <OfflineNotice feature="Managing workspaces" />
       {/* Header */}
-      <header className="flex justify-between items-center mb-8">
+      <header className="px-4 md:px-0 flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-4xl font-headline font-extrabold tracking-tight text-on-surface">Workspaces</h1>
+          <h1 className="text-2xl md:text-4xl font-headline font-extrabold tracking-tight text-on-surface">Workspaces</h1>
           <p className="text-on-surface-variant mt-2 font-medium opacity-60">
             Manage your workspaces and team members
           </p>

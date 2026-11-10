@@ -9,6 +9,7 @@ import { TransactionsPage } from './pages/TransactionsPage';
 import { WorkspacesPage } from './pages/WorkspacesPage';
 import { AreasPage } from './pages/AreasPage';
 import { RecurringExpensesPage } from './pages/RecurringExpensesPage';
+import { ChatPage } from './pages/ChatPage';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/insights" element={<InsightsPage />} />
+            <Route path="/chat" element={<ChatPage />} />
             <Route path="/transactions/new" element={<TransactionsPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/recurring-expenses" element={<RecurringExpensesPage />} />

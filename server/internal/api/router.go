@@ -23,6 +23,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	areaService := services.NewAreaService(db)
 	recurringExpenseService := services.NewRecurringExpenseService(db)
 	exchangeRateService := services.NewExchangeRateService(db)
+	chatService := services.NewChatService(db, transactionService, areaService, recurringExpenseService, exchangeRateService)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userService)
@@ -33,6 +34,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	areaHandler := handlers.NewAreaHandler(areaService, categoryService)
 	recurringExpenseHandler := handlers.NewRecurringExpenseHandler(recurringExpenseService)
 	exchangeRateHandler := handlers.NewExchangeRateHandler(exchangeRateService)
+	chatHandler := handlers.NewChatHandler(chatService)
 
 	// API v1
 	v1 := router.Group("/api/v1")
@@ -70,6 +72,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 					// Transactions
 					workspace.GET("/transactions", transactionHandler.List)
 					workspace.POST("/transactions", transactionHandler.Create)
+					workspace.PATCH("/transactions", transactionHandler.BulkUpdate)
 					workspace.GET("/transactions/summary", transactionHandler.GetSummary)
 					workspace.GET("/transactions/yearly-summary", transactionHandler.GetYearlySummary)
 					workspace.POST("/transactions/upload", uploadHandler.Upload)
@@ -112,6 +115,13 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 					workspace.GET("/exchange-rates/:month", exchangeRateHandler.Get)
 					workspace.PUT("/exchange-rates/:month", exchangeRateHandler.Upsert)
 					workspace.DELETE("/exchange-rates/:month", exchangeRateHandler.Delete)
+
+					workspace.GET("/chat/conversations", chatHandler.ListConversations)
+					workspace.POST("/chat/conversations", chatHandler.CreateConversation)
+					workspace.GET("/chat/conversations/:conv_id", chatHandler.GetConversation)
+					workspace.PATCH("/chat/conversations/:conv_id", chatHandler.RenameConversation)
+					workspace.DELETE("/chat/conversations/:conv_id", chatHandler.DeleteConversation)
+					workspace.POST("/chat/conversations/:conv_id/messages", chatHandler.SendMessage)
 				}
 			}
 		}

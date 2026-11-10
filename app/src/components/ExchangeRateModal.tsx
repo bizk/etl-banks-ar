@@ -131,7 +131,7 @@ export function ExchangeRateModal({ isOpen, onClose }: ExchangeRateModalProps) {
               <button
                 type="submit"
                 disabled={!rate || upsertMutation.isPending}
-                className="flex-1 px-4 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-3 rounded-xl bg-primary-container text-white font-headline font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
                 {upsertMutation.isPending ? 'Saving...' : existingRate ? 'Update Rate' : 'Set Rate'}
               </button>
@@ -140,9 +140,11 @@ export function ExchangeRateModal({ isOpen, onClose }: ExchangeRateModalProps) {
                   type="button"
                   onClick={handleDelete}
                   disabled={deleteMutation.isPending}
-                  className="px-4 py-3 rounded-xl border border-error text-error font-semibold hover:bg-error/10 disabled:opacity-50 transition-colors"
+                  className="px-4 py-3 rounded-xl bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-600 disabled:opacity-50 transition-colors flex items-center justify-center"
+                  aria-label="Delete rate"
+                  title="Delete rate"
                 >
-                  <span className="material-symbols-outlined text-lg">delete</span>
+                  <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>delete</span>
                 </button>
               )}
             </div>

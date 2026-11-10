@@ -20,6 +20,7 @@ type TransactionList struct {
 type Transaction struct {
 	Date         string  `json:"date"`
 	Description  string  `json:"description"`
+	Counterparty string  `json:"counterparty"`
 	Amount       float64 `json:"amount"`
 	BalanceAfter float64 `json:"balance_after"`
 	Type         string  `json:"type"` // "debit" | "credit"
@@ -51,6 +52,7 @@ Extract EVERY transaction from the bank statement PDF and return ONLY valid JSON
     {
       "date": "YYYY-MM-DD",
       "description": "string",
+      "counterparty": "string",
       "amount": 123.45,
       "balance_after": 456.78,
       "type": "debit" | "credit"
@@ -61,7 +63,7 @@ Extract EVERY transaction from the bank statement PDF and return ONLY valid JSON
 CRITICAL REQUIREMENTS:
 1. Output ONLY valid JSON - no markdown code blocks, no explanations, no text before or after
 2. The JSON MUST be complete and properly closed:
-   - Every transaction object must have all 5 fields: date, description, amount, balance_after, type
+   - Every transaction object must have all 6 fields: date, description, counterparty, amount, balance_after, type
    - Every opening brace { must have a closing brace }
    - Every opening bracket [ must have a closing bracket ]
 3. Field rules:
@@ -69,7 +71,8 @@ CRITICAL REQUIREMENTS:
    - "amount": negative for debits, positive for credits, use dot as decimal separator
    - "balance_after": numeric value if available, otherwise 0.0
    - "type": exactly "debit" or "credit" (lowercase)
-   - "description": concrete payee/merchant/concept text; omit leading Spanish boilerplate phrases "egreso de dinero" / "ingreso de dinero" (any casing) plus stray separators (- : |) that only separate that boilerplate — keep whatever identifies the merchant
+   - "description": concrete payee/merchant/concept text; omit leading Spanish boilerplate phrases "egreso de dinero" / "ingreso de dinero" (any casing) plus stray separators (- : |) that only separate that boilerplate — keep whatever identifies the merchant. For transfers keep the kind of movement (e.g. "Transferencia enviada", "Transferencia recibida", "DEBIN", "Pago de servicio")
+   - "counterparty": WHO the money was sent to (debits) or received from (credits): the person's or company's name exactly as printed, plus any identifier shown next to it (CUIT/CUIL, alias, CBU/CVU, account holder). Look at every line/column belonging to the movement, including continuation lines and reference/detail columns — transfer recipients are often printed on a second line. Use "" when the statement does not show one (e.g. card purchases where the merchant is already the description, bank fees, interest)
 4. Extract ALL transactions from the statement - do not stop early
 5. Ensure the final JSON is valid and parseable - verify all brackets and braces are closed
 
@@ -110,7 +113,7 @@ func ParseTransactions(transactions TransactionList) (*[]models.Transaction, err
 
 		parsed = append(parsed, models.Transaction{
 			Date:         date,
-			Description:  descriptionField(transaction.Description),
+			Description:  descriptionField(WithCounterparty(transaction.Description, transaction.Counterparty, transaction.Type)),
 			Amount:       sql.NullFloat64{Float64: amount, Valid: true},
 			BalanceAfter: sql.NullFloat64{Float64: balanceAfter, Valid: true},
 			Type:         sql.NullString{String: transaction.Type, Valid: true},

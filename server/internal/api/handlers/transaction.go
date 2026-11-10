@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -30,15 +31,10 @@ type CreateTransactionRequest struct {
 	AreaID      *uint   `json:"area_id"`
 }
 
-type UpdateTransactionRequest struct {
-	Date          *string  `json:"date"`
-	Description   *string  `json:"description"`
-	Amount        *float64 `json:"amount"`
-	Type          *string  `json:"type"`
-	Category      *string  `json:"category"`
-	Owner         *string  `json:"owner"`
-	AreaID        *uint    `json:"area_id"`
-	UserConfirmed *bool    `json:"user_confirmed"`
+type UpdateTransactionRequest = services.TransactionPatch
+
+type BulkUpdateTransactionsRequest struct {
+	Transactions []services.TransactionPatchItem `json:"transactions" binding:"required"`
 }
 
 func (h *TransactionHandler) List(c *gin.Context) {
@@ -56,6 +52,8 @@ func (h *TransactionHandler) List(c *gin.Context) {
 	filter := services.TransactionFilter{
 		WorkspaceID: uint(workspaceID),
 		Month:       month,
+		DateFrom:    c.Query("date_from"),
+		DateTo:      c.Query("date_to"),
 		Categories:  c.QueryArray("category"),
 		Type:        c.Query("type"),
 		Page:        page,
@@ -149,32 +147,9 @@ func (h *TransactionHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if req.Date != nil {
-		date, err := time.Parse("2006-01-02", *req.Date)
-		if err == nil {
-			transaction.Date = date
-		}
-	}
-	if req.Description != nil {
-		transaction.Description = sql.NullString{String: *req.Description, Valid: true}
-	}
-	if req.Amount != nil {
-		transaction.Amount = sql.NullFloat64{Float64: *req.Amount, Valid: true}
-	}
-	if req.Type != nil {
-		transaction.Type = sql.NullString{String: *req.Type, Valid: true}
-	}
-	if req.Category != nil {
-		transaction.Category = sql.NullString{String: *req.Category, Valid: *req.Category != ""}
-	}
-	if req.Owner != nil {
-		transaction.Owner = sql.NullString{String: *req.Owner, Valid: *req.Owner != ""}
-	}
-	if req.AreaID != nil {
-		transaction.AreaID = req.AreaID
-	}
-	if req.UserConfirmed != nil {
-		transaction.UserConfirmed = *req.UserConfirmed
+	if err := services.ApplyTransactionPatch(transaction, req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
 	if err := h.transactionService.Update(transaction); err != nil {
@@ -183,6 +158,29 @@ func (h *TransactionHandler) Update(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"transaction": transaction})
+}
+
+// BulkUpdate applies several partial updates in one database transaction.
+func (h *TransactionHandler) BulkUpdate(c *gin.Context) {
+	workspaceID, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+
+	var req BulkUpdateTransactionsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	updated, err := h.transactionService.BulkUpdate(uint(workspaceID), req.Transactions)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, services.ErrBulkTransactionNotFound) {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"updated": len(updated), "transactions": updated})
 }
 
 func (h *TransactionHandler) Delete(c *gin.Context) {

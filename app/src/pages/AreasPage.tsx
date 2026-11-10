@@ -151,9 +151,10 @@ export function AreasPage() {
     setEditingArea(null);
   };
 
-  const openCreateCategoryModal = () => {
+  const openCreateCategoryModal = (areaId: number | null = null) => {
     setEditingCategory(null);
-    setCategoryForm({ name: '', area_id: null, color: COLORS[0].value, icon: ICONS[0] });
+    const area = areaId != null ? areasData?.areas?.find((a) => a.id === areaId) : undefined;
+    setCategoryForm({ name: '', area_id: areaId, color: area?.color || COLORS[0].value, icon: ICONS[0] });
     setShowCategoryModal(true);
   };
 
@@ -221,9 +222,70 @@ export function AreasPage() {
   const categories = categoriesData?.categories || [];
   const isLoading = areasLoading || categoriesLoading;
 
-  // Group categories by area for display
+  const byName = (a: { name: string }, b: { name: string }) =>
+    a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
+  const sortedAreas = [...areas].sort(byName);
+  const areaIds = new Set(areas.map((a) => a.id));
+  // Group categories by area for display (alphabetical inside each area)
   const getCategoriesForArea = (areaId: number) =>
-    categories.filter((c) => c.area_id === areaId);
+    categories.filter((c) => c.area_id === areaId).sort(byName);
+  const unassignedCategories = categories
+    .filter((c) => c.area_id == null || !areaIds.has(c.area_id))
+    .sort(byName);
+
+  const renderCategoryRow = (category: Category, accent: string) => (
+    <div
+      key={category.id}
+      className="group flex flex-wrap items-center justify-between gap-3 py-2.5 pl-4 pr-2 rounded-lg hover:bg-surface-container transition-colors"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="w-1 self-stretch rounded-full" style={{ backgroundColor: accent }} />
+        <div
+          className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: category.color || accent }}
+        >
+          <span className="material-symbols-outlined text-white text-base">
+            {category.icon || 'label'}
+          </span>
+        </div>
+        <span className="font-medium text-on-surface truncate">{category.name}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <label className="sr-only" htmlFor={`category-area-${category.id}`}>Move to area</label>
+        <select
+          id={`category-area-${category.id}`}
+          value={category.area_id || ''}
+          onChange={(e) => {
+            const val = e.target.value;
+            handleCategoryAreaChange(category.id, val ? Number(val) : null);
+          }}
+          title="Move to area"
+          className="px-3 py-1.5 rounded-lg bg-surface-container border-none text-sm font-medium min-w-[140px] mr-1"
+        >
+          <option value="">No area</option>
+          {sortedAreas.map((area) => (
+            <option key={area.id} value={area.id}>
+              {area.name}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={() => openEditCategoryModal(category)}
+          title="Edit category"
+          className="p-2 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant hover:text-primary"
+        >
+          <span className="material-symbols-outlined text-xl">edit</span>
+        </button>
+        <button
+          onClick={() => handleDeleteCategory(category)}
+          title="Delete category"
+          className="p-2 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant hover:text-error"
+        >
+          <span className="material-symbols-outlined text-xl">delete</span>
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -245,154 +307,117 @@ export function AreasPage() {
         </div>
       ) : (
         <div className="space-y-8">
-          {/* Areas Section */}
           <section className="bg-surface-container-lowest rounded-2xl p-6">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
               <div>
                 <h2 className="text-lg font-headline font-bold text-on-surface">Areas</h2>
                 <p className="text-sm text-on-surface-variant mt-1">
-                  Areas group related categories together
+                  Each area groups its categories. Use the dropdown on a category to move it to another area.
                 </p>
               </div>
-              <button
-                onClick={openCreateAreaModal}
-                className="bg-primary-container text-white font-headline font-bold py-2 px-4 rounded-xl flex items-center gap-2 hover:opacity-90 transition-opacity"
-              >
-                <span className="material-symbols-outlined">add</span>
-                New Area
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => openCreateCategoryModal()}
+                  className="bg-surface-container text-on-surface font-headline font-bold py-2 px-4 rounded-xl flex items-center gap-2 hover:bg-surface-container-high transition-colors"
+                >
+                  <span className="material-symbols-outlined">label</span>
+                  New Category
+                </button>
+                <button
+                  onClick={openCreateAreaModal}
+                  className="bg-primary-container text-white font-headline font-bold py-2 px-4 rounded-xl flex items-center gap-2 hover:opacity-90 transition-opacity"
+                >
+                  <span className="material-symbols-outlined">add</span>
+                  New Area
+                </button>
+              </div>
             </div>
 
-            {areas.length === 0 ? (
+            {areas.length === 0 && categories.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant">
                 <span className="material-symbols-outlined text-5xl mb-4">category</span>
                 <p>No areas created yet</p>
                 <p className="text-sm mt-1">Create an area to group your categories</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {areas.map((area) => {
+              <div className="space-y-4">
+                {sortedAreas.map((area) => {
                   const areaCategories = getCategoriesForArea(area.id);
+                  const accent = area.color || COLORS[0].value;
                   return (
-                    <div
-                      key={area.id}
-                      className="flex items-center justify-between p-4 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center"
-                          style={{ backgroundColor: area.color || COLORS[0].value }}
-                        >
-                          <span className="material-symbols-outlined text-white">
-                            {area.icon || 'category'}
-                          </span>
+                    <div key={area.id} className="rounded-xl bg-surface-container-low overflow-hidden">
+                      <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-4">
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: accent }}
+                          >
+                            <span className="material-symbols-outlined text-white">
+                              {area.icon || 'category'}
+                            </span>
+                          </div>
+                          <div>
+                            <h3 className="font-headline font-bold text-on-surface">{area.name}</h3>
+                            <p className="text-xs text-on-surface-variant">
+                              {areaCategories.length} {areaCategories.length === 1 ? 'category' : 'categories'}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-on-surface">{area.name}</h3>
-                          <p className="text-sm text-on-surface-variant">
-                            {areaCategories.length === 0
-                              ? 'No categories assigned'
-                              : areaCategories.map((c) => c.name).join(', ')}
-                          </p>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => openCreateCategoryModal(area.id)}
+                            title={`Add category to ${area.name}`}
+                            className="p-2 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant hover:text-primary"
+                          >
+                            <span className="material-symbols-outlined">add_circle</span>
+                          </button>
+                          <button
+                            onClick={() => openEditAreaModal(area)}
+                            title="Edit area"
+                            className="p-2 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant hover:text-primary"
+                          >
+                            <span className="material-symbols-outlined">edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteArea(area)}
+                            title="Delete area"
+                            className="p-2 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant hover:text-error"
+                          >
+                            <span className="material-symbols-outlined">delete</span>
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openEditAreaModal(area)}
-                          className="p-2 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant hover:text-primary"
-                        >
-                          <span className="material-symbols-outlined">edit</span>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteArea(area)}
-                          className="p-2 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant hover:text-error"
-                        >
-                          <span className="material-symbols-outlined">delete</span>
-                        </button>
+                      <div className="px-2 pb-2 sm:pl-10">
+                        {areaCategories.length === 0 ? (
+                          <p className="text-sm text-on-surface-variant opacity-70 px-4 pb-3">
+                            No categories in this area yet
+                          </p>
+                        ) : (
+                          areaCategories.map((category) => renderCategoryRow(category, accent))
+                        )}
                       </div>
                     </div>
                   );
                 })}
-              </div>
-            )}
-          </section>
 
-          {/* Categories Section */}
-          <section className="bg-surface-container-lowest rounded-2xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className="text-lg font-headline font-bold text-on-surface">Categories</h2>
-                <p className="text-sm text-on-surface-variant mt-1">
-                  Assign categories to areas using the dropdown
-                </p>
-              </div>
-              <button
-                onClick={openCreateCategoryModal}
-                className="bg-primary-container text-white font-headline font-bold py-2 px-4 rounded-xl flex items-center gap-2 hover:opacity-90 transition-opacity"
-              >
-                <span className="material-symbols-outlined">add</span>
-                New Category
-              </button>
-            </div>
-
-            {categories.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant">
-                <span className="material-symbols-outlined text-5xl mb-4">label</span>
-                <p>No categories created yet</p>
-                <p className="text-sm mt-1">Categories are created automatically from transactions</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {categories.map((category) => (
-                  <div
-                    key={category.id}
-                    className="flex items-center justify-between p-4 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: category.color || COLORS[0].value }}
-                      >
-                        <span className="material-symbols-outlined text-white text-lg">
-                          {category.icon || 'label'}
-                        </span>
+                {unassignedCategories.length > 0 && (
+                  <div className="rounded-xl border border-dashed border-on-surface-variant/30 overflow-hidden">
+                    <div className="flex items-center gap-4 p-4">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-high">
+                        <span className="material-symbols-outlined text-on-surface-variant">label_off</span>
                       </div>
-                      <span className="font-medium text-on-surface">{category.name}</span>
+                      <div>
+                        <h3 className="font-headline font-bold text-on-surface">Without area</h3>
+                        <p className="text-xs text-on-surface-variant">
+                          {unassignedCategories.length} {unassignedCategories.length === 1 ? 'category' : 'categories'} - pick an area to organize them
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-on-surface-variant">Area:</span>
-                        <select
-                          value={category.area_id || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            handleCategoryAreaChange(category.id, val ? Number(val) : null);
-                          }}
-                          className="px-3 py-1.5 rounded-lg bg-surface-container border-none text-sm font-medium min-w-[140px]"
-                        >
-                          <option value="">None</option>
-                          {areas.map((area) => (
-                            <option key={area.id} value={area.id}>
-                              {area.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <button
-                        onClick={() => openEditCategoryModal(category)}
-                        className="p-2 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant hover:text-primary"
-                      >
-                        <span className="material-symbols-outlined">edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteCategory(category)}
-                        className="p-2 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant hover:text-error"
-                      >
-                        <span className="material-symbols-outlined">delete</span>
-                      </button>
+                    <div className="px-2 pb-2 sm:pl-10">
+                      {unassignedCategories.map((category) => renderCategoryRow(category, '#9ca3af'))}
                     </div>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </section>

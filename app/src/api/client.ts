@@ -1,9 +1,8 @@
 import axios from 'axios';
-
-const API_BASE_URL = '/api/v1';
+import { useAuthStore } from '../store/authSlice';
+import { apiBaseUrl } from '../store/serverSlice';
 
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -12,6 +11,8 @@ export const apiClient = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
+    // Resolved per request: the server address can be changed in the app's settings.
+    config.baseURL = apiBaseUrl();
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -26,9 +27,10 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // The session ended, but the local database and its queue of unsent changes stay:
+      // signing in again as the same user resumes the sync where it stopped.
+      useAuthStore.getState().logout();
+      if (window.location.pathname !== '/login') window.location.href = '/login';
     }
     return Promise.reject(error);
   }

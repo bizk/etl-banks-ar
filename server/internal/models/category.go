@@ -7,6 +7,7 @@ const MissingCategoryName = "Missing"
 
 type Category struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
+	ClientID    string    `gorm:"size:36;uniqueIndex" json:"client_id"`
 	WorkspaceID uint      `gorm:"uniqueIndex:idx_ws_cat_name;not null" json:"workspace_id"`
 	Name        string    `gorm:"size:255;uniqueIndex:idx_ws_cat_name;not null" json:"name"`
 	AreaID      *uint     `json:"area_id"`

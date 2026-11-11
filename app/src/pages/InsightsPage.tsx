@@ -219,9 +219,9 @@ export function InsightsPage() {
 
   return (
     <div>
-      <header className="flex justify-between items-center mb-12">
+      <header className="px-4 md:px-0 flex justify-between items-center mb-12">
         <div>
-          <h1 className="text-4xl font-headline font-extrabold tracking-tight text-on-surface">Insights</h1>
+          <h1 className="text-2xl md:text-4xl font-headline font-extrabold tracking-tight text-on-surface">Insights</h1>
           <p className="text-on-surface-variant mt-2 font-medium opacity-60">
             Yearly overview and month-over-month signals for {year}
           </p>
@@ -252,28 +252,28 @@ export function InsightsPage() {
       ) : (
         <>
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div className="bg-surface-container-lowest p-8 rounded-xl">
+            <div className="bg-surface-container-lowest p-5 md:p-8 rounded-xl">
               <p className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant opacity-50">Yearly Spending</p>
-              <p className="mt-4 text-4xl font-headline font-extrabold">
+              <p className="mt-4 text-2xl md:text-4xl font-headline font-extrabold">
                 {displayAmount(yearlySummary?.total_spending || 0)}
               </p>
             </div>
-            <div className="bg-surface-container-lowest p-8 rounded-xl">
+            <div className="bg-surface-container-lowest p-5 md:p-8 rounded-xl">
               <p className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant opacity-50">Yearly Income</p>
-              <p className="mt-4 text-4xl font-headline font-extrabold text-primary">
+              <p className="mt-4 text-2xl md:text-4xl font-headline font-extrabold text-primary">
                 {displayAmount(yearlySummary?.total_income || 0)}
               </p>
             </div>
-            <div className="bg-surface-container-lowest p-8 rounded-xl">
+            <div className="bg-surface-container-lowest p-5 md:p-8 rounded-xl">
               <p className="text-sm font-semibold uppercase tracking-widest text-on-surface-variant opacity-50">Net</p>
-              <p className={`mt-4 text-4xl font-headline font-extrabold ${(yearlySummary?.net || 0) >= 0 ? 'text-primary' : 'text-error'}`}>
+              <p className={`mt-4 text-2xl md:text-4xl font-headline font-extrabold ${(yearlySummary?.net || 0) >= 0 ? 'text-primary' : 'text-error'}`}>
                 {displayAmount(Math.abs(yearlySummary?.net || 0))}
               </p>
             </div>
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-8 mb-12">
-            <div className="bg-surface-container-lowest p-8 rounded-xl">
+            <div className="bg-surface-container-lowest p-5 md:p-8 rounded-xl">
               <div className="flex items-start justify-between gap-4 mb-6">
                 <div>
                   <h3 className="text-xl font-headline font-bold">Yearly Area Treemap</h3>
@@ -305,7 +305,7 @@ export function InsightsPage() {
               )}
             </div>
 
-            <div className="bg-surface-container-lowest p-8 rounded-xl">
+            <div className="bg-surface-container-lowest p-5 md:p-8 rounded-xl">
               <div className="flex items-start justify-between gap-4 mb-6">
                 <div>
                   <h3 className="text-xl font-headline font-bold">Average Benchmarks</h3>
@@ -339,7 +339,7 @@ export function InsightsPage() {
             </div>
           </section>
 
-          <section className="bg-surface-container-lowest p-8 rounded-xl">
+          <section className="bg-surface-container-lowest p-5 md:p-8 rounded-xl">
             <div className="flex items-start justify-between gap-4 mb-8">
               <div>
                 <h3 className="text-xl font-headline font-bold">Yearly Records by Area</h3>

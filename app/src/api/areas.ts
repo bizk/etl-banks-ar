@@ -1,5 +1,9 @@
-import apiClient from './client';
+import { db, type LocalArea, type LocalCategory } from '../local/db';
+import { areaView, byLid, newRow, ofWorkspace, queue, touched, write } from '../local/store';
+import { areaMonthlySummary, areaYearlySummary } from '../local/summaries';
+import { ensureLocalCopy } from '../sync/engine';
 import type { Area, YearlyAreaSummary } from '../types';
+import { transactionsInMonth, transactionsInYear } from './transactions';
 
 interface CreateAreaRequest {
   name: string;
@@ -37,52 +41,68 @@ export interface AreaSummaryResponse {
   areas: AreaSummaryItem[];
 }
 
+const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+
+// Backed by the local database; see src/local and src/sync.
 export const areasApi = {
   list: async (workspaceId: number): Promise<{ areas: Area[] }> => {
-    const response = await apiClient.get<{ areas: Area[] }>(
-      `/workspaces/${workspaceId}/areas`
-    );
-    return response.data;
+    await ensureLocalCopy(workspaceId);
+    const areas = await ofWorkspace<LocalArea>('area', workspaceId);
+    return { areas: areas.sort(byName).map(areaView) };
   },
 
   get: async (workspaceId: number, areaId: number): Promise<{ area: Area }> => {
-    const response = await apiClient.get<{ area: Area }>(
-      `/workspaces/${workspaceId}/areas/${areaId}`
-    );
-    return response.data;
+    await ensureLocalCopy(workspaceId);
+    return { area: areaView(await byLid<LocalArea>('area', workspaceId, areaId)) };
   },
 
   create: async (workspaceId: number, data: CreateAreaRequest): Promise<{ area: Area }> => {
-    const response = await apiClient.post<{ area: Area }>(
-      `/workspaces/${workspaceId}/areas`,
-      data
-    );
-    return response.data;
+    const row: LocalArea = { ...newRow(workspaceId), name: data.name, color: data.color ?? '', icon: data.icon ?? '' };
+    await write(async () => {
+      await db.areas.add(row);
+      await queue(workspaceId, 'area', 'upsert', row.client_id);
+    });
+    return { area: areaView(row) };
   },
 
   update: async (workspaceId: number, areaId: number, data: UpdateAreaRequest): Promise<{ area: Area }> => {
-    const response = await apiClient.put<{ area: Area }>(
-      `/workspaces/${workspaceId}/areas/${areaId}`,
-      data
-    );
-    return response.data;
+    const row = await write(async () => {
+      const area = await byLid<LocalArea>('area', workspaceId, areaId);
+      Object.assign(area, {
+        name: data.name ?? area.name, color: data.color ?? area.color, icon: data.icon ?? area.icon, ...touched(),
+      });
+      await db.areas.put(area);
+      await queue(workspaceId, 'area', 'upsert', area.client_id);
+      return area;
+    });
+    return { area: areaView(row) };
   },
 
   delete: async (workspaceId: number, areaId: number): Promise<void> => {
-    await apiClient.delete(`/workspaces/${workspaceId}/areas/${areaId}`);
+    await write(async () => {
+      const area = await byLid<LocalArea>('area', workspaceId, areaId);
+      await db.areas.delete(area.client_id);
+      // The server unassigns whatever pointed at the area; mirror that locally.
+      const pointsHere = (r: { area_client_id: string | null }) => r.area_client_id === area.client_id;
+      await db.categories.where('workspace_id').equals(workspaceId).and(pointsHere).modify({ area_client_id: null });
+      await db.transactions.where('workspace_id').equals(workspaceId).and(pointsHere).modify({ area_client_id: null });
+      await queue(workspaceId, 'area', 'delete', area.client_id);
+    });
   },
 
   getSummary: async (workspaceId: number, month: string): Promise<AreaSummaryResponse> => {
-    const response = await apiClient.get<AreaSummaryResponse>(
-      `/workspaces/${workspaceId}/areas/summary?month=${month}`
+    const transactions = await transactionsInMonth(workspaceId, month);
+    return areaMonthlySummary(
+      month, transactions,
+      await ofWorkspace<LocalCategory>('category', workspaceId), await ofWorkspace<LocalArea>('area', workspaceId),
     );
-    return response.data;
   },
 
   getYearlySummary: async (workspaceId: number, year: string): Promise<YearlyAreaSummary> => {
-    const response = await apiClient.get<YearlyAreaSummary>(
-      `/workspaces/${workspaceId}/areas/yearly-summary?year=${year}`
+    const transactions = await transactionsInYear(workspaceId, year);
+    return areaYearlySummary(
+      year, transactions,
+      await ofWorkspace<LocalCategory>('category', workspaceId), await ofWorkspace<LocalArea>('area', workspaceId),
     );
-    return response.data;
   },
 };

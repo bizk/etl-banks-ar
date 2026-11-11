@@ -179,7 +179,7 @@ func (s *TransactionService) Update(t *models.Transaction) error {
 }
 
 func (s *TransactionService) Delete(id, workspaceID uint) error {
-	return s.db.Where("id = ? AND workspace_id = ?", id, workspaceID).Delete(&models.Transaction{}).Error
+	return deleteWithTombstone(s.db, &models.Transaction{}, models.SyncEntityTransaction, workspaceID, "id = ?", id, nil)
 }
 
 type CategorySummary struct {

@@ -37,7 +37,7 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   background-color: var(--color-background);
   color: var(--color-on-surface);
   transition: background-color 0.2s ease, color 0.2s ease;
@@ -59,7 +59,7 @@ input::placeholder, textarea::placeholder {
 }
 
 h1, h2, h3, .font-headline {
-  font-family: 'Manrope', sans-serif;
+  font-family: 'Manrope Variable', 'Manrope', sans-serif;
 }
 
 .material-symbols-outlined {

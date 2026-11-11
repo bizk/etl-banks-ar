@@ -57,29 +57,33 @@ func (s *RecurringExpenseService) FindByID(id, workspaceID uint) (*models.Recurr
 	return &expense, err
 }
 
-func (s *RecurringExpenseService) Create(expense *models.RecurringExpense) error {
+// ValidateRecurringExpense checks the invariants shared by every write path.
+func ValidateRecurringExpense(expense *models.RecurringExpense) error {
 	if expense.DueDay < 1 || expense.DueDay > 31 {
 		return errors.New("due_day must be between 1 and 31")
 	}
 	if expense.Amount <= 0 {
 		return errors.New("amount must be positive")
+	}
+	return nil
+}
+
+func (s *RecurringExpenseService) Create(expense *models.RecurringExpense) error {
+	if err := ValidateRecurringExpense(expense); err != nil {
+		return err
 	}
 	return s.db.Create(expense).Error
 }
 
 func (s *RecurringExpenseService) Update(expense *models.RecurringExpense) error {
-	if expense.DueDay < 1 || expense.DueDay > 31 {
-		return errors.New("due_day must be between 1 and 31")
-	}
-	if expense.Amount <= 0 {
-		return errors.New("amount must be positive")
+	if err := ValidateRecurringExpense(expense); err != nil {
+		return err
 	}
 	return s.db.Save(expense).Error
 }
 
 func (s *RecurringExpenseService) Delete(id, workspaceID uint) error {
-	return s.db.Where("id = ? AND workspace_id = ?", id, workspaceID).
-		Delete(&models.RecurringExpense{}).Error
+	return deleteWithTombstone(s.db, &models.RecurringExpense{}, models.SyncEntityRecurringExpense, workspaceID, "id = ?", id, nil)
 }
 
 type RecurringExpenseSummary struct {
@@ -133,6 +137,12 @@ func (s *RecurringExpenseService) GetSummary(workspaceID uint, month time.Time) 
 }
 
 func (s *RecurringExpenseService) MarkPaid(id, workspaceID uint, month string, userID uint) (*models.RecurringExpense, *models.Transaction, error) {
+	return s.MarkPaidAs(id, workspaceID, month, userID, "")
+}
+
+// MarkPaidAs is MarkPaid with a caller-chosen client_id for the generated transaction, so an
+// offline client that already shows that transaction locally ends up with the same row.
+func (s *RecurringExpenseService) MarkPaidAs(id, workspaceID uint, month string, userID uint, transactionClientID string) (*models.RecurringExpense, *models.Transaction, error) {
 	expense, err := s.FindByID(id, workspaceID)
 	if err != nil {
 		return nil, nil, err
@@ -165,6 +175,7 @@ func (s *RecurringExpenseService) MarkPaid(id, workspaceID uint, month string, u
 	owner := firstNonEmpty(expense.Owner, user.Name)
 	transaction := &models.Transaction{
 		WorkspaceID: workspaceID,
+		ClientID:    transactionClientID,
 		Date:        now,
 		Description: sql.NullString{String: expense.Name, Valid: true},
 		Amount:      sql.NullFloat64{Float64: expense.Amount, Valid: true},

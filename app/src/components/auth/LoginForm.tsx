@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { ServerSettings } from '../ServerSettings';
+import { useServerStore } from '../../store/serverSlice';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../../api/auth';
@@ -8,6 +10,8 @@ export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isServerOpen, setIsServerOpen] = useState(false);
+  const serverUrl = useServerStore((state) => state.serverUrl);
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
 
@@ -89,7 +93,16 @@ export function LoginForm() {
             Create one
           </Link>
         </p>
+        <button
+          type="button"
+          onClick={() => setIsServerOpen(true)}
+          className="mx-auto mt-4 flex items-center gap-1 text-xs text-on-surface-variant hover:text-on-surface"
+        >
+          <span className="material-symbols-outlined text-sm">dns</span>
+          Server{serverUrl && `: ${serverUrl.replace(/^https?:\/\//, '')}`}
+        </button>
       </div>
+      <ServerSettings isOpen={isServerOpen} onClose={() => setIsServerOpen(false)} />
     </div>
   );
 }

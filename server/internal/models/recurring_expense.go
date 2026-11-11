@@ -5,6 +5,7 @@ import "time"
 type RecurringExpense struct {
 	PaidForMonth string     `gorm:"-" json:"-"`
 	ID           uint       `gorm:"primaryKey" json:"id"`
+	ClientID     string     `gorm:"size:36;uniqueIndex" json:"client_id"`
 	WorkspaceID  uint       `gorm:"not null;index" json:"workspace_id"`
 	Name         string     `gorm:"size:255;not null" json:"name"`
 	Amount       float64    `gorm:"not null" json:"amount"`
@@ -23,6 +24,7 @@ type RecurringExpensePayment struct {
 	Month              string    `gorm:"size:7;uniqueIndex:idx_recurring_month;not null" json:"month"`
 	TransactionID      uint      `gorm:"not null" json:"transaction_id"`
 	PaidAt             time.Time `json:"paid_at"`
+	CreatedAt          time.Time `gorm:"index" json:"created_at"`
 }
 
 // IsPaidThisMonth checks if the expense was marked paid in the current month

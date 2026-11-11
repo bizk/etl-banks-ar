@@ -24,8 +24,8 @@ export default {
         error: "var(--color-error)",
       },
       fontFamily: {
-        headline: ["Manrope", "sans-serif"],
-        body: ["Inter", "sans-serif"],
+        headline: ["Manrope Variable", "Manrope", "sans-serif"],
+        body: ["Inter Variable", "Inter", "sans-serif"],
       },
     },
   },

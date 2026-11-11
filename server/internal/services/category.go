@@ -63,7 +63,7 @@ func (s *CategoryService) AreaBelongs(workspaceID uint, areaID uint) (bool, erro
 }
 
 func (s *CategoryService) Delete(id, workspaceID uint) error {
-	return s.db.Where("id = ? AND workspace_id = ?", id, workspaceID).Delete(&models.Category{}).Error
+	return deleteWithTombstone(s.db, &models.Category{}, models.SyncEntityCategory, workspaceID, "id = ?", id, detachCategory)
 }
 
 func (s *CategoryService) ListByArea(areaID, workspaceID uint) ([]models.Category, error) {

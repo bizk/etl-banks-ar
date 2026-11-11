@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { OfflineNotice } from './SyncIndicator';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, subMonths, addMonths } from 'date-fns';
 import { parseCalendarDate } from '../utils/date';
@@ -86,6 +87,7 @@ export function ExchangeRateModal({ isOpen, onClose }: ExchangeRateModalProps) {
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
+        <OfflineNotice feature="Changing exchange rates" />
 
         <div className="mb-6">
           <div className="flex items-center justify-center gap-4 mb-4">

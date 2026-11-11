@@ -19,6 +19,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-etlpass}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS:-720}
       API_PORT: 8080
 
   ui:

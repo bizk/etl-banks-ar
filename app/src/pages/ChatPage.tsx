@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { syncNow } from '../sync/engine';
+import { OfflineNotice } from '../components/SyncIndicator';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { isAxiosError } from 'axios';
@@ -124,7 +126,8 @@ export function ChatPage() {
       }));
       invalidateList();
       if (result.assistant_message.actions?.length) {
-        DATA_QUERY_KEYS.forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+        // The assistant changed data on the server: pull it into the local copy first.
+        void syncNow().then(() => DATA_QUERY_KEYS.forEach((key) => queryClient.invalidateQueries({ queryKey: [key] })));
       }
     },
     onError: (error, content) => {
@@ -218,8 +221,9 @@ export function ChatPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-4xl font-headline font-extrabold tracking-tight text-on-surface">AI Chat</h1>
+      <OfflineNotice feature="The AI chat" />
+      <header className="px-4 md:px-0 mb-6">
+        <h1 className="text-2xl md:text-4xl font-headline font-extrabold tracking-tight text-on-surface">AI Chat</h1>
         <p className="mt-2 text-on-surface-variant font-medium">
           Ask about your spending in {currentWorkspace.name} and get data-grounded tips.
         </p>

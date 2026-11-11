@@ -87,3 +87,20 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }
+
+// Refresh issues a fresh token for an already authenticated user, sliding the expiry forward.
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	user, err := h.userService.FindByID(c.MustGet("userID").(uint))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+		return
+	}
+
+	token, err := auth.GenerateToken(user.ID, user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"user": user, "token": token})
+}
